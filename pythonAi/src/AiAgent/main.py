@@ -2,11 +2,12 @@
 from agentCore import  get_api_key, create_ai_agent, run_chat_loop
 from memory import ConversationMemory #用对话管理类
 
-momery_list = []
 
 
-# 初始化记忆列表
-def initMomerList(momery_obj):
+# 初始化记忆列表initMemoryList
+
+
+def initMemoryList(momery_obj):
     
     #清除类中消息列表， 确保重新开始
     momery_obj.clearList()
@@ -19,7 +20,7 @@ def main():
     try:
         # 初始化对话管理类
         con1 = ConversationMemory()
-        initMomerList(con1)
+        initMemoryList(con1)
         # 1. 获取密钥
         api_key = get_api_key()
         # 2. 创建Agent大脑
