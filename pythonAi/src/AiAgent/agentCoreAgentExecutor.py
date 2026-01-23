@@ -5,6 +5,10 @@
 
 from langchain_community.chat_models import ChatZhipuAI
 
+
+from langgraph.prebuilt import create_react_agent
+
+from langchain.agents import create_react_agent, AgentExecutor
 from langchain_core.messages import HumanMessage, AIMessage, SystemMessage,ToolMessage
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 
@@ -26,6 +30,44 @@ def get_api_key():
         # 改为抛出异常，而非直接退出
         raise ValueError("❌ 未找到环境变量 ZHIPUAI_API_KEY。请在终端执行: export ZHIPUAI_API_KEY='你的密钥'")
     return zhipu_api_key
+
+
+def create_ai_agent_executor(api_key):
+    print("🧠 正在初始化 ReAct AgentExecutor...")
+    llm = ChatZhipuAI(
+        model="glm-4-flash",          # 推荐用 flash，更快
+        temperature=0.7,              # 稍高一点，更容易调用工具
+        api_key=api_key,
+    )
+    
+    tools = [calculator, search_Weather, get_current_time]
+    
+    # 本地模拟 react-chat 提示词（官方推荐替代 hub.pull）
+    prompt = ChatPromptTemplate.from_messages([
+        ("system", """你是一个有帮助的AI助手，能使用工具解决问题。
+        请严格按照 ReAct 格式思考：
+        - Thought: 先思考下一步该做什么
+        - Action: 如果需要工具，就输出工具调用
+        - Observation: 工具返回结果后继续思考
+        - Final Answer: 最终给出用户可见的回答"""),
+        MessagesPlaceholder("chat_history"),
+        ("human", "{input}"),
+        MessagesPlaceholder("agent_scratchpad"),
+    ])
+    
+    # 创建 ReAct Agent
+    agent = create_react_agent(llm, tools, prompt)
+    
+    # 创建执行器
+    agent_executor = AgentExecutor(
+        agent=agent,
+        tools=tools,
+        verbose=True,                  # 必须开！看思考链
+        handle_parsing_errors=True,    # 自动处理格式错误
+        max_iterations=10,             # 防死循环
+    )
+    
+    return agent_executor
 
 
 def create_ai_agent(api_key):
@@ -69,6 +111,40 @@ def get_memory_as_langchain_messages(memory_obj):
             langchain_messages.append(tool_message)
     return langchain_messages
     #返回的是一个全是langchian对象的消息列表，将整个对话内容发送给模型， 使得模型有记忆
+
+
+
+def run_chat_loop(agent_executor, memory_obj):
+    print("\n🤖 AgentExecutor 已上线！输入'退出'结束。")
+    
+    while True:
+        user_input = input("\n💬 你: ").strip()
+        if user_input.lower() in ['退出', 'exit', 'q']:
+            break
+        if not user_input:
+            continue
+        
+        try:
+            memory_obj.add_to_memory('user', user_input)
+            chat_history = get_memory_as_langchain_messages(memory_obj)[:-1]
+            
+            print("🤖 正在思考......")
+            
+            full_response = ""
+            for chunk in agent_executor.stream({
+                "input": user_input,
+                "chat_history": chat_history
+            }):
+                if "output" in chunk:
+                    content = chunk["output"]
+                    print(content, end="", flush=True)
+                    full_response += content
+            
+            print("\n" + "-" * 40)
+            memory_obj.add_to_memory('assistant', full_response)
+            
+        except Exception as e:
+            print(f"⚠️ 错误: {e}")
 
 def run_chat_loop(agent_brain,memory_obj): #添加参数memory_obj， 用他来管理消息操作
 

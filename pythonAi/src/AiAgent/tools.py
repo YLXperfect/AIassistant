@@ -27,6 +27,11 @@ from langchain.tools import tool
 
 import math
 import requests
+from datetime import datetime
+import pytz   
+# pytz 是Python第三方库（全名Python Time Zone），专门处理全球时区（包括夏令时自动调整）。
+
+
 
 # @tool 把函数变成了一个具有标准化接口的“工具对象”
 @tool
@@ -78,7 +83,21 @@ def calculator(expression: str) -> str:
         return "计算错误，请检查表达式"
 
 
-
+@tool
+def get_current_time(city:str="北京")->str:
+    ''' 根据传入的城市获取城市当前时间'''
+    try:
+        tz = pytz.timezone({
+            "北京": "Asia/Shanghai",
+            "香港": "Asia/Hong_Kong",
+            "纽约": "America/New_York"
+        }.get(city, "Asia/Shanghai"))
+        return datetime.now(tz).strftime("%Y年%m月%d日 %H:%M:%S %Z")
+    except:
+        return "城市不支持"
+        
+        
+    
 
 @tool("sayHello",description="say hello to you!")
 def greeting(name:str)->str:

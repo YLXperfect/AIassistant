@@ -1,5 +1,6 @@
 # main.py
 from agentCore import  get_api_key, create_ai_agent, run_chat_loop
+
 from memory import ConversationMemory #用对话管理类
 
 
@@ -25,6 +26,7 @@ def main():
         api_key = get_api_key()
         # 2. 创建Agent大脑
         agent_brain = create_ai_agent(api_key)
+        
         # 3. 启动对话循环，并传入创建好的“大脑”
         run_chat_loop(agent_brain,con1)
 
