@@ -31,9 +31,10 @@ class ConversationMemory:
     def get_Recent_messages(self,n):
         recent_messageList = self.getLastMemoryList(n)
         #用推导式获取列表中消息内容   新列表 = [对元素的操作 for 元素 in 可迭代对象 if 条件]  if可选
-        contents = [msg['content'] for msg in recent_messageList]
+        # contents = [msg['content'] for msg in recent_messageList]
 
-        return contents
+        # return contents
+        return recent_messageList
 #获取最近N条用户消息
     def get_Recent_user(self,n):
         recent_messageList = self.getLastMemoryList(n)

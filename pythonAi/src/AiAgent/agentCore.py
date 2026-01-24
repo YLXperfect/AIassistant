@@ -5,13 +5,16 @@
 
 from langchain_community.chat_models import ChatZhipuAI
 
+from langchain.agents import create_agent
+
+
 from langchain_core.messages import HumanMessage, AIMessage, SystemMessage,ToolMessage
-from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
+
 
 import os 
 from memory import ConversationMemory  #  导入对话管理类
 
-from tools import calculator, search_Weather,get_current_time #导入工具
+from tools import calculator, search_Weather,get_current_time,query_document #导入工具
 import time
 
 
@@ -38,12 +41,27 @@ def create_ai_agent(api_key):
         streaming=True,
         api_key=api_key,
     )
-    tools = [calculator, search_Weather,get_current_time]  
-    llm_with_tools = llm.bind_tools(tools)  #添加并绑定工具给模型
-    return llm_with_tools
-    '''
     
+    tools = [calculator, search_Weather,get_current_time,query_document]  
+    # llm_with_tools = llm.bind_tools(tools)  #添加并绑定工具给模型
+    # return llm_with_tools
     '''
+    使用create_agent创建自动管理ReAct的agent
+    '''
+
+   # Prompt 作为 state_modifier 传（字符串或 PromptTemplate 都行）
+    system_prompt = """你是一个有帮助的AI助手，能使用工具解决问题。
+请严格按照 ReAct 格式思考：并且每一步都打印出来
+Thought: 先思考下一步该做什么
+Action: 如果需要，调用工具
+Observation: 观察工具结果
+Final Answer: 给出用户最终回答"""
+    agent = create_agent(
+        model=llm,
+        tools=tools,
+       system_prompt =system_prompt, 
+    )
+    return agent
     
 
 # 在记忆模块部分，添加以下函数（放在 get_memory 函数后面即可）  添加参数memory_obj， 用他来管理消息操作
@@ -58,7 +76,7 @@ def get_memory_as_langchain_messages(memory_obj):
         elif msg["role"] == "system":
             langchain_messages.append(SystemMessage(content=msg["content"]))
         elif msg["role"] == "tool":
-            # 注意：你的内存中存储的是字典，需要提取信息构造ToolMessage
+            # 注意：你的内存中存储的是字典，需要提取信息构造ToolMessage 
             # 假设你存储时格式是：{"role": "tool", "content": "...", "name": "...", "tool_call_id": "..."}
             # 你需要根据实际存储的字段来调整
             tool_message = ToolMessage(
@@ -70,6 +88,8 @@ def get_memory_as_langchain_messages(memory_obj):
     return langchain_messages
     #返回的是一个全是langchian对象的消息列表，将整个对话内容发送给模型， 使得模型有记忆
 
+
+#手动管理ReAct  需要手动存储消息，工具消息， 用户消息， AI消息
 def run_chat_loop(agent_brain,memory_obj): #添加参数memory_obj， 用他来管理消息操作
 
     print("\n🤖 你的AI Agent已上线！请输入您的问题或者输入'NO' or '退出' 结束对话。")
@@ -84,31 +104,14 @@ def run_chat_loop(agent_brain,memory_obj): #添加参数memory_obj， 用他来�
         if not user_input:
             continue
     # 构造消息并调用模型
-
         try:
-            start_time = time.time()  # 本轮总计时开始
-
             memory_obj.add_to_memory('user', user_input)
             # 2. 【关键】获取转换后的完整消息历史（此时包含刚存的用户输入）
             langchain_messages = get_memory_as_langchain_messages(memory_obj)
             print(f"（调试）转换后的消息数：{len(langchain_messages)}，角色分布：")
-            print(f"【调试】准备消息耗时: {time.time() - start_time:.2f}s (历史{len(langchain_messages)}条)")
 
             for msg in langchain_messages:
                 print(f"  - {type(msg).__name__}")
-
-            # print(f"（调试）发送给模型的消息：{(langchain_messages)} ")  # 调试行
-            #     # 3. 调用模型
-            # response = agent_brain.invoke(langchain_messages)  等答案全部获取到，才开始打印 
-    
-            #  # 4. 将AI回复存入记忆
-            # memory_obj.add_to_memory('assistant', response.content)
-            # 打印Agent回复
-            # print(f"\n🤖 💬 机器人回复: {response.content}")
-            # print("-" * 40)
-
-
-
 
             # 显示“正在思考”动画（掩盖第一轮延迟）
             print("🤖 正在思考", end="", flush=True)
@@ -182,7 +185,52 @@ def run_chat_loop(agent_brain,memory_obj): #添加参数memory_obj， 用他来�
         
         except Exception as e:
             print(f"⚠️  出错了: {e}")
+
+
+#用agent管理ReAct 不需要再存储工具消息， 消息列表里只有 用户 跟 Ai助手消息
+def newRun_chat_loop(memory_obj,agent):
+    print("\n🤖 LangGraph Agent 已上线！")
+    
+    while True:
+        user_input = input("\n💬 你: ").strip()
+        if user_input.lower() in ['退出', 'q']:
+            break
+        
+        memory_obj.add_to_memory('user', user_input)
+        messages = get_memory_as_langchain_messages(memory_obj)
+        
+        # 显示“正在思考”动画（掩盖第一轮延迟）
+        print("🤖 正在思考", end="", flush=True)
+        for _ in range(3):
+            time.sleep(0.1)
+            print(".", end="", flush=True)
+        print("\r", end="")  # 清掉动画行，准备打印回复
+        full_response = ""
+
+        print("\n【ReAct 思考链开始】")
             
+        
+        for chunk in agent.stream({"messages": messages},stream_mode="updates",):
+            for step, data in chunk.items():
+                #每一步的思考过程
+                # print(f"step: {step}")
+                content_blocks = data['messages'][-1].content_blocks if data['messages'] else []
+                # print(f"content: {content_blocks}")
+
+                #每一步的回复
+                for block in content_blocks:
+                    if block['type'] == 'text':
+                        text = block['text']
+                        print(text, end="", flush=True)  # 流式打印
+                        #拼接回复，最后存入memoryList  只存最终答案 明天优化
+                        full_response += text
+
+            
+        print("\n【ReAct 思考链结束】")
+        print("-" * 40)
+            
+        memory_obj.add_to_memory('assistant', full_response)
+
 
 # # 3. 构造一个简单的用户消息
 # messages = [HumanMessage(content="我要学ai agent开发，请帮我写一个学习计划")]

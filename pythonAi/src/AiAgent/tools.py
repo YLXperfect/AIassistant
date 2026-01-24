@@ -24,11 +24,14 @@ def 工具名(参数1: 类型, 参数2: 类型) -> 返回类型:
 
 
 from langchain.tools import tool
+from langchain_community.document_loaders import PyPDFLoader, TextLoader  
 
 import math
 import requests
 from datetime import datetime
 import pytz   
+import os
+
 # pytz 是Python第三方库（全名Python Time Zone），专门处理全球时区（包括夏令时自动调整）。
 
 
@@ -97,7 +100,35 @@ def get_current_time(city:str="北京")->str:
         return "城市不支持"
         
         
+@tool
+def query_document(fileName:str,question:str)->str:
+    """读取本地TXT或PDF文档，并根据用户问题回答文档相关内容。
+    参数:
+        filename: 文件名（放在项目根目录，支持 .txt 或 .pdf）
+        question: 用户关于文档的问题
+    """
+    try:
+        file_path = os.path.join(os.getcwd(), fileName)
+        if not os.path.exists(file_path):
+            return f"文件 {fileName} 不存在。"
+        
+        # 根据文件类型加载
+        if fileName.lower().endswith('.pdf'):
+            loader = PyPDFLoader(file_path)
+        elif fileName.lower().endswith('.txt'):
+            loader = TextLoader(file_path, encoding='utf-8')
+        else:
+            return "不支持的文件格式，只支持 .txt 或 .pdf"
+        
+        docs = loader.load()
+        content = "\n".join([doc.page_content for doc in docs])
+        
+        # 简单 RAG：把文档内容 + 问题给模型回答（初步版）
+        return f"文档内容（前1000字）：{content[:1000]}...\n\n根据文档回答问题 '{question}' 的答案是："
     
+    except Exception as e:
+        return f"读取文档失败: {str(e)}"
+
 
 @tool("sayHello",description="say hello to you!")
 def greeting(name:str)->str:
