@@ -99,35 +99,85 @@ def get_current_time(city:str="北京")->str:
     except:
         return "城市不支持"
         
+from langchain_text_splitters import RecursiveCharacterTextSplitter 
+from langchain_chroma import Chroma
+from langchain_community.embeddings import ZhipuAIEmbeddings
+
+
         
+
+# 全局向量库
+vectorstore = None
+embeddings = ZhipuAIEmbeddings(
+    model="embedding-3",  # 智谱最新嵌入模型，免费好用
+    api_key=os.getenv("ZHIPUAI_API_KEY"),  # 和 LLM 同 key
+    )
 @tool
 def query_document(fileName:str,question:str)->str:
-    """读取本地TXT或PDF文档，并根据用户问题回答文档相关内容。
+    """向量检索本地TXT或PDF文档，并根据问题回答。
     参数:
         filename: 文件名（放在项目根目录，支持 .txt 或 .pdf）
         question: 用户关于文档的问题
     """
+    global vectorstore
+
     try:
-        file_path = os.path.join(os.getcwd(), fileName)
+        file_path = os.path.join(os.getcwd(), fileName)  #构建绝对路径
         if not os.path.exists(file_path):
             return f"文件 {fileName} 不存在。"
         
-        # 根据文件类型加载
+        
+        # 根据文件类型选择加载器（LangChain 标准文档加载）
+
         if fileName.lower().endswith('.pdf'):
             loader = PyPDFLoader(file_path)
         elif fileName.lower().endswith('.txt'):
             loader = TextLoader(file_path, encoding='utf-8')
         else:
             return "不支持的文件格式，只支持 .txt 或 .pdf"
-        
+
+        print(f"【工具调试】正在读取文件: {file_path}")  # 加这行看控制台
+
+        # docs = loader.load()
+        # content = "\n".join([doc.page_content for doc in docs])
+        # 简单 RAG：把文档内容 + 问题给模型回答（初步版）  可能文档太长，影响另外的文件读取  token太长
+        # return f"文档内容（前1000字）：{content[:1000]}...\n\n根据文档回答问题 '{question}' 的答案是："
+
+
+        #只截取前500字
+        # short_content = content[:500] + "..." if len(content) > 500 else content
+        # print(f"【工具调试】读取成功，内容长度: {len(content)}")
+
+
+        #读取文件
         docs = loader.load()
-        content = "\n".join([doc.page_content for doc in docs])
+        #文件分块
+        text_splitter = RecursiveCharacterTextSplitter(chunk_size=300, chunk_overlap=80) #chunk_size 切成300字的块，  重叠80字
+        splits = text_splitter.split_documents(docs)
+
+        # 构建/更新向量库  第一次创建， 后续添加
+        if vectorstore is None:
+            vectorstore = Chroma.from_documents(documents=splits, embedding=embeddings)
+        else:
+            vectorstore.add_documents(splits)
+
+        # 检索 
+        retriever = vectorstore.as_retriever(search_kwargs={"k": 5}) ## k=5：返回 5 个最相似片段
+        relevant_docs = retriever.invoke(question)# 用问题向量检索
         
-        # 简单 RAG：把文档内容 + 问题给模型回答（初步版）
-        return f"文档内容（前1000字）：{content[:1000]}...\n\n根据文档回答问题 '{question}' 的答案是："
+        context = "\n".join([doc.page_content for doc in relevant_docs])
+
+        return f"相关文档片段：\n{context}\n\n请根据以上内容回答问题 '{question}'："
+
+
+
     
     except Exception as e:
-        return f"读取文档失败: {str(e)}"
+        return f" RAG 失败: {str(e)}"
+
+
+
+        
 
 
 @tool("sayHello",description="say hello to you!")

@@ -37,7 +37,7 @@ def create_ai_agent(api_key):
     print("🧠 正在初始化AI Agent...")
     llm = ChatZhipuAI(
         model="glm-4",
-        temperature=0.1,
+        temperature=0.4,
         streaming=True,
         api_key=api_key,
     )
@@ -206,10 +206,13 @@ def newRun_chat_loop(memory_obj,agent):
             print(".", end="", flush=True)
         print("\r", end="")  # 清掉动画行，准备打印回复
         full_response = ""
+        is_final_answer = False  # 标记是否进入 Final Answer
+
 
         print("\n【ReAct 思考链开始】")
             
         
+        #stream_mode = updates 流模式代理模式， 代理程序每执行一步操作后，都会传输状态更新。如果在同一步骤中进行多次更新（例如，运行多个节点），则这些更新会分别传输
         for chunk in agent.stream({"messages": messages},stream_mode="updates",):
             for step, data in chunk.items():
                 #每一步的思考过程
@@ -219,17 +222,37 @@ def newRun_chat_loop(memory_obj,agent):
 
                 #每一步的回复
                 for block in content_blocks:
+                    
                     if block['type'] == 'text':
-                        text = block['text']
-                        print(text, end="", flush=True)  # 流式打印
-                        #拼接回复，最后存入memoryList  只存最终答案 明天优化
-                        full_response += text
+                        print(block['text'],end="",flush=True)
+                    elif block['type'] == 'tool_call':
+                        print(f"Action: {block['name']} {block['args']}")
+                        
+                # 只累积 Final Answer 到 full_response
+                # 判断条件：model step + 有 text + 没有 tool_call（即最终回答）
+                if step == "model" and content_blocks:
+                    has_tool_call = any(b['type'] == 'tool_call' for b in content_blocks)
+                    if not has_tool_call:  # 是 Final Answer
+                        for block in content_blocks:
+                            if block['type'] == 'text':
+                                text = block['text']
+                                print(text, end="", flush=True)  # 流式打印最终回复
+                                full_response += text
+                        is_final_answer = True
+
+                
 
             
         print("\n【ReAct 思考链结束】")
         print("-" * 40)
+        # 只存最终回复（防 token 爆炸）
+        if full_response.strip():
+            memory_obj.add_to_memory('assistant', full_response.strip())
+            print(f"\n【调试】存入记忆的最终回复: {full_response.strip()}")
+        else:
+            print("\n【警告】未检测到 Final Answer，未存记忆")
             
-        memory_obj.add_to_memory('assistant', full_response)
+        
 
 
 # # 3. 构造一个简单的用户消息

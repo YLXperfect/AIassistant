@@ -1,0 +1,204 @@
+第一阶段总体原则项目驱动：所有学习服务于一个“旗舰项目”——智能研究助手（多工具 + RAG）。
+版本锁定：LangChain 1.2.0 + Python 3.11。
+每天产出：必须有可运行代码 + GitHub commit。
+资源：官方文档 https://python.langchain.com/v0.2/docs/ + B站“朗琴LangChain” + DeepLearning.AI短课。
+
+第1-7天：基础攻坚（打通 Python → LangChain → 工具调用）目标：产出一个命令行 Agent，能调用1-3个自定义工具 + 带记忆对话。Day 1：Python复习 + LangChain 入门
+目标：熟悉 LangChain 1.2.0 基本结构。
+内容：Python 3.11 进阶（类、异步、异常）、安装 LangChain 1.2.0 + langgraph。
+实战：用 ChatZhipuAI 做简单聊天机器人（单轮 + 流式）。
+产出：命令行聊天脚本（支持退出）。
+Day 2：工具调用基础 (Tool Calling)
+目标：掌握 bind_tools + 手动 ReAct 循环。
+内容：@tool
+ 装饰器、tool_calls 处理。
+实战：加计算器工具（支持 ^ 幂运算）。
+产出：Agent 能自动调用计算器。
+Day 3：多工具 + 记忆
+目标：支持多工具并行 + 对话记忆。
+内容：手动消息历史管理（Human/AI/ToolMessage）。
+实战：加天气工具（免费API） + 时间工具（pytz）。
+产出：三工具稳定调用 + 带记忆多轮对话。
+Day 4：调试优化 + 思考链可见
+目标：加调试日志 + 流式 + 动画。
+内容：手动 ReAct 循环完善（处理历史污染）。
+实战：测试多轮工具组合 + 修复bug。
+产出：Agent 丝滑、思考链打印清晰。
+Day 5：升级到 LangGraph ReAct Agent
+目标：切换官方推荐方式（create_agent + stream）。
+内容：LangGraph 预构建 + 事件流处理。
+实战：迁移手动循环到 LangGraph（保持三工具）。
+产出：自动 ReAct + 思考链可见。
+Day 6：初步 RAG 工具
+目标：Agent 能读取本地文档。
+内容：PyPDFLoader + TextLoader。
+实战：加 query_document 工具（TXT/PDF 全文读取）。
+产出：Agent 能问“文档里写了什么”。   已完成
+Day 7：RAG 测试 + 复盘
+目标：多轮文档问答 + bug修复。
+内容：token管理 + 内容截取。
+实战：测试 PDF/TXT 切换 + 多轮追问。
+产出：四工具稳定（计算/天气/时间/文档） + GitHub repo。
+
+第8-15天：核心能力（完整 RAG + Prompt 优化）目标：升级 RAG 为向量检索 + 优化 Prompt。Day 8：向量嵌入 + Chroma 本地数据库
+目标：从全文检索升级向量检索。
+内容：智谱 embedding + Chroma。
+实战：改 query_document 为向量检索（分块 + 相似度）。
+产出：Agent 精准回答文档问题。
+Day 9：RAG 链优化
+目标：检索 + 生成分离。
+内容：RetrievalQAChain + stuff/compression。
+实战：支持多文档检索。
+产出：RAG 准确率提升。
+Day 10：Prompt 工程精通
+目标：系统提示 + few-shot + CoT。
+内容：PromptTemplate + 优化 ReAct。
+实战：让 Agent 更聪明（少幻觉、多工具）。
+产出：Prompt Hub 示例集成。
+Day 11：数据清洗实战
+目标：对齐岗位“数据清洗”要求。
+内容：pandas 处理文档/CSV。
+实战：清洗 PDF 提取文本 + 去噪。
+产出：清洗工具集成 Agent。
+Day 12：向量检索进阶
+目标：混合检索 + 重排序。
+内容：bge embedding + MMR。
+实战：提升 RAG 召回率。
+产出：多查询检索支持。
+Day 13：NLP/ML 基础
+目标：熟悉岗位要求。
+内容：Tokenization + Embedding + PyTorch 张量基础。
+实战：PyTorch Notebook 简单文本分类。
+产出：能回答面试“NLP基础”问题。
+Day 14：微调概念
+目标：了解 LoRA + PEFT。
+内容：HuggingFace PEFT 示例。
+实战：概念 Notebook（不真训）。
+产出：能阐述微调流程。
+Day 15：第一阶段复盘 + 项目完善
+目标：完整 RAG Agent。
+实战：多轮文档问答 + 工具组合测试。
+产出：命令行版“智能研究助手”Demo。
+
+第16-20天：工程化与界面目标：Web产品化 + 部署。Day 16：FastAPI 后端封装
+目标：Agent 作为 API。
+内容：FastAPI + stream 响应。
+实战：/chat 接口。
+Day 17：Vue/React 前端
+目标：聊天界面 + 文件上传。
+内容：你前端经验发挥。
+实战：Web 聊天 + 文档上传。
+Day 18：身份验证 + 会话管理
+目标：多用户支持。
+实战：简单 token 验证。
+Day 19：Docker 容器化
+目标：对齐岗位 Docker 要求。
+内容：Dockerfile + compose。
+实战：一键启动。
+Day 20：部署 + 第一阶段收尾
+目标：上线 Demo。
+实战：Railway/Render 部署。
+产出：完整 Web 版助手 + GitHub README（架构图、Demo链接）。
+
+第一阶段结束后，你会有一个可面试的生产级 Agent 项目（LangGraph + RAG + 多工具 + Web + Docker），直接对齐岗位90%要求。
+
+第二阶段总体目标将第一阶段的单 Agent V1 产品升级为 基于 LangGraph 的多 Agent 协作系统（这是岗位最大亮点：多 Agent 工作流、状态机、可视化）。覆盖岗位要求：LangGraph 深度、数据清洗、向量检索进阶、Docker。
+产出：V2 系统（多 Agent 协作 + 容器化部署），简历/面试杀器。
+
+每天4-6小时，70%实战。每天结束打卡发我日志/代码，我帮优化。第21-30天：架构升级（LangGraph 多 Agent 工作流）目标：用 LangGraph StateGraph 重构 Agent，实现多 Agent 协作。Day 21：LangGraph 状态图入门
+目标：理解 StateGraph + nodes + edges。
+内容：官方文档 LangGraph 教程。
+实战：简单双节点 Agent（Planner → Executor）。
+产出：多 Agent 原型（规划 + 执行）。
+Day 22：多 Agent 协作模式
+目标：Supervisor + Worker 模式。
+内容：预构建 multi-agent 示例。
+实战：拆分你的研究助手为 Planner/Retriever/Generator Agent。
+产出：三 Agent 协作系统。
+Day 23：状态持久化 + 记忆共享
+目标：多 Agent 共享记忆。
+内容：checkpoint + Redis/SQLite 持久化。
+实战：会话持久化（重启程序记忆保留）。
+产出：持久化多 Agent。
+Day 24：条件分支 + 循环
+目标：Agent 动态路由。
+内容：conditional_edge。
+实战：根据问题类型路由不同 Agent（工具 vs RAG）。
+产出：智能路由系统。
+Day 25：可视化调试
+目标：LangGraph 图可视化。
+内容：get_graph().draw_mermaid_png()。
+实战：导出架构图（README 用）。
+产出：可视化多 Agent 图。
+Day 26：错误处理 + 重试
+目标：生产级鲁棒性。
+内容：node 重试 + fallback。
+实战：工具失败自动重试。
+产出：鲁棒多 Agent。
+Day 27：RAG 集成多 Agent
+目标：Retriever Agent 专用。
+内容：向量检索 Agent。
+实战：检索 + 生成分离。
+产出：RAG 多 Agent 版。
+Day 28：数据清洗集成
+目标：对齐岗位“数据清洗”。
+内容：pandas + 文本清洗 Agent。
+实战：清洗上传文档 + 检索。
+产出：清洗 Agent。
+Day 29：向量检索进阶
+目标：混合检索 + 重排序。
+内容：HyDE + MMR。
+实战：提升 RAG 准确率。
+产出：高级 RAG Agent。
+Day 30：第二阶段中期复盘
+目标：完整多 Agent 系统测试。
+实战：复杂问题（文档 + 工具 + 计算）。
+产出：V2 多 Agent Demo + GitHub update。
+
+第31-35天：数据处理（岗位硬要求强化）目标：体现数据清洗 + 检索优化。Day 31：pandas 数据清洗深度
+目标：清洗结构化/非结构化数据。
+内容：去重、归一化、异常检测。
+实战：清洗上传 CSV/PDF 表格。
+产出：清洗工具 Agent。
+Day 32：chunk 策略优化
+目标：RAG 分块进阶。
+内容：semantic chunking + metadata。
+实战：提升召回率。
+产出：智能分块 RAG。
+Day 33：多模态 RAG 初步
+目标：图片/表格支持。
+内容：GPT-4o vision 或本地多模态。
+实战：PDF 表格提取。
+产出：多模态查询。
+Day 34：评估与监控
+目标：RAG 质量评估。
+内容：ragas 或自定义 metric。
+实战：评估召回/准确率。
+产出：评估报告。
+Day 35：第二阶段数据部分收尾
+目标：完整数据管道。
+实战：上传文档 → 清洗 → 检索 → 生成。
+产出：数据处理亮点模块。
+
+第36-40天：部署与运维（工程化亮点）目标：容器化 + 云部署。Day 36：Docker 入门
+目标：对齐岗位 Docker 要求。
+内容：Dockerfile + multi-stage。
+实战：Agent 容器化。
+产出：本地 docker run。
+Day 37：docker-compose + 数据库
+目标：Chroma/Redis 容器化。
+实战：一键启动全栈。
+产出：compose.yml。
+Day 38：云部署
+目标：Railway/Render/HuggingFace Spaces。
+实战：上线 Web 版。
+产出：公开 Demo 链接。
+Day 39：监控 + 日志
+目标：LangSmith tracing。
+实战：集成 tracing + 成本监控。
+产出：可观测 Agent。
+Day 40：第二阶段收尾
+目标：完整 V2 系统。
+实战：压力测试 + bug修复。
+产出：生产级多 Agent 助手 + 架构图 + Demo。
+
