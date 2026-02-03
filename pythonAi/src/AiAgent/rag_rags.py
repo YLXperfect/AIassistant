@@ -1,13 +1,13 @@
-# RAG 评估（用 ragas 量化当前水平）
+# RAG 评估（用 ragas 量化当前水平）   报错， 不支持智谱大模型
 
 from ragas import evaluate
 from datasets import Dataset
 from langchain_community.chat_models import ChatZhipuAI
 import os
-from ragas.metrics.collections import Faithfulness, AnswerRelevancy, ContextRecall, ContextPrecision  # 新导入（防警告）
+from ragas.metrics.collections import Faithfulness, AnswerRelevancy, ContextRecall, ContextPrecision  
 from dotenv import load_dotenv
 
-from ragas.llms import LangchainLLMWrapper  # 关键包装
+from ragas.llms import LangchainLLMWrapper  
 
 load_dotenv()
 

@@ -108,6 +108,8 @@ from langchain_community.embeddings import ZhipuAIEmbeddings
 
 # 全局向量库
 vectorstore = None
+
+#嵌入模型
 embeddings = ZhipuAIEmbeddings(
     model="embedding-3",  # 智谱最新嵌入模型，免费好用
     api_key=os.getenv("ZHIPUAI_API_KEY"),  # 和 LLM 同 key
@@ -138,20 +140,11 @@ def query_document(fileName:str,question:str)->str:
 
         print(f"【工具调试】正在读取文件: {file_path}")  # 加这行看控制台
 
-        # docs = loader.load()
-        # content = "\n".join([doc.page_content for doc in docs])
-        # 简单 RAG：把文档内容 + 问题给模型回答（初步版）  可能文档太长，影响另外的文件读取  token太长
-        # return f"文档内容（前1000字）：{content[:1000]}...\n\n根据文档回答问题 '{question}' 的答案是："
-
-
-        #只截取前500字
-        # short_content = content[:500] + "..." if len(content) > 500 else content
-        # print(f"【工具调试】读取成功，内容长度: {len(content)}")
 
 
         #读取文件
         docs = loader.load()
-        #文件分块
+        #文档切块，   RecursiveCharacterTextSplitter langchain中智能递归切割
         text_splitter = RecursiveCharacterTextSplitter(chunk_size=300, chunk_overlap=80) #chunk_size 切成300字的块，  重叠80字
         splits = text_splitter.split_documents(docs)
 
@@ -161,9 +154,18 @@ def query_document(fileName:str,question:str)->str:
         else:
             vectorstore.add_documents(splits)
 
-        # 检索 
-        retriever = vectorstore.as_retriever(search_kwargs={"k": 5}) ## k=5：返回 5 个最相似片段
-        relevant_docs = retriever.invoke(question)# 用问题向量检索
+        # 优化检索 
+        retriever = vectorstore.as_retriever(
+            search_type="mmr",  # 最大边际相关性
+            search_kwargs={
+                "k": 8,             # 先拉8个
+                "fetch_k": 20,      # 先从20个里选
+                "lambda_mult": 0.5  # 平衡相关性与多样性（0~1，0.5 通常最佳）
+            }
+        )
+        relevant_docs = retriever.invoke(question)
+
+        
         
         context = "\n".join([doc.page_content for doc in relevant_docs])
 

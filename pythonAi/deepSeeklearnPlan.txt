@@ -31,7 +31,7 @@ https://docs.langchain.com/oss/python/langchain/overview#tools
 官方文档：Document Loaders
 https://docs.langchain.com/oss/python/langchain/overview#document-loaders
 
-第4天：RAG稳定性优化 🔄 今天
+第4天：RAG稳定性优化 
 今日任务：
 
 优化系统提示词，让Agent稳定识别文档查询
@@ -47,8 +47,7 @@ https://docs.langchain.com/oss/python/langchain/overview#document-loaders
 官方文档：Prompts
 https://docs.langchain.com/oss/python/langchain/overview#prompts
 
-第5天：向量化与相似度检索
-
+第5天：向量化与相似度检索    今天
 
 学习向量嵌入(Embeddings)概念
 

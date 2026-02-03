@@ -51,7 +51,7 @@ def create_ai_agent(api_key):
 
    # Prompt 作为 state_modifier 传（字符串或 PromptTemplate 都行）
     system_prompt = """你是一个有帮助的AI助手，能使用工具解决问题。
-请严格按照 ReAct 格式思考：并且每一步都打印出来
+请严格按照 ReAct 格式思考：
 Thought: 先思考下一步该做什么
 Action: 如果需要，调用工具
 Observation: 观察工具结果
@@ -236,7 +236,7 @@ def newRun_chat_loop(memory_obj,agent):
                         for block in content_blocks:
                             if block['type'] == 'text':
                                 text = block['text']
-                                print(text, end="", flush=True)  # 流式打印最终回复
+                                
                                 full_response += text
                         is_final_answer = True
 
