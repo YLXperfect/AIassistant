@@ -1,0 +1,69 @@
+第一阶段（第1-20天）：核心产品交付（智能研究助手 V1）目标：命令行 + Web 版 Agent（LangGraph ReAct + 多工具 + 完整 RAG），可面试 Demo。第1-7天：基础 + RAG 链Day 1：环境搭建 + LangChain 入门（已完成）。
+Day 2：工具调用基础（计算器 + @tool
+）。
+Day 3：多工具 + 记忆（天气 + 时间 + 手动 ReAct）。
+Day 4：调试优化 + 思考链可见。
+Day 5：升级 LangGraph ReAct Agent + 初步 RAG 工具（已完成）。
+Day 6：完整 RAG 链（retriever + prompt + LLM + MMR + 多查询）。已完成（rag_chain.py 跑通）。
+Day 7：RAG 测试 + 优化（多轮追问 + token 管理 + compression + HyDE 预热）。
+
+第8-15天：RAG 进阶 + PromptDay 8：RAG 链高级模式（map_reduce/refine + stuff）。
+Day 9：混合检索 + 重排序 + metadata 过滤。
+Day 10：Prompt 工程精通（few-shot + CoT + 系统提示优化 ReAct）。
+Day 11：数据清洗实战（pandas 清洗 PDF/CSV + 集成工具）。
+Day 12：向量检索进阶（多查询扩展 + 评估预热）。
+Day 13：NLP/ML 基础（Tokenization + PyTorch 张量 + 简单分类）。
+Day 14：微调概念（LoRA + PEFT 示例 Notebook）。
+Day 15：第一阶段复盘（完整 RAG Agent 测试 + GitHub update + README 架构图）。
+
+第16-20天：工程化 + Web 界面Day 16：FastAPI 后端封装（/chat 接口 + stream）。
+Day 17：Streamlit UI 基础（聊天界面 + 文件上传）。
+Day 18：会话管理 + 工具配置 UI（多用户简单支持）。
+Day 19：Docker 容器化（Dockerfile + compose + Chroma）。
+Day 20：部署 + 第一阶段收尾（Railway/Render 上线 + Demo 链接 + 完整 README）。
+
+第二阶段（第21-40天）：多 Agent 协作系统（V2）目标：LangGraph 多 Agent（规划/检索/生成/审核） + 数据处理 + 部署，简历杀器。第21-30天：多 Agent 架构升级Day 21：LangGraph 状态图入门（StateGraph + nodes + edges）。
+Day 22：多 Agent 设计（规划 Agent + 检索 Agent + 生成 Agent + 审核 Agent）。
+Day 23：状态持久化 + 记忆共享（checkpoint + SQLite）。
+Day 24：条件分支 + 动态路由（conditional_edge）。
+Day 25：可视化调试 + 错误处理（draw_mermaid + 重试/fallback）。
+Day 26：RAG 集成检索 Agent（专用 RAG 子 Agent）。
+Day 27：数据清洗 Agent（pandas + 文本清洗）。
+Day 28：生成 + 审核 Agent（结构化输出 + 事实检查）。
+Day 29：Agent 通信 + 工作流编排（消息传递 + 并行）。
+Day 30：第二阶段中期复盘（V2 多 Agent Demo + 测试复杂问题）。
+
+第31-40天：数据处理 + 部署Day 31：pandas 深度清洗 + 表格提取。
+Day 32：chunk 策略优化（semantic chunking + metadata）。
+Day 33：多模态初步（PDF 表格/图片支持）。
+Day 34：数据库工具（SQL 查询 Agent）。
+Day 35：API + 通知工具（外部集成）。
+Day 36：缓存 + 性能优化（向量缓存 + 结果缓存）。
+Day 37：Docker 进阶（multi-stage + compose）。
+Day 38：云部署（Railway + 监控）。
+Day 39：LangSmith tracing + 成本监控。
+Day 40：第二阶段收尾（V2 生产级系统 + 架构图 + Demo）。
+
+第三阶段（第41-60天）：微调 + 项目集 + 求职目标：3个完整项目 + 面试准备，高级岗位水平。第41-46天：PyTorch + 微调基础Day 41：PyTorch 入门（Tensor + GPU）。
+Day 42：Transformer 架构深入。
+Day 43：微调理论（LoRA/QLoRA/PEFT）。
+Day 44：数据准备（指令数据集清洗）。
+Day 45：LoRA 微调实战（Qwen2-1.5B）。
+Day 46：微调评估 + 优化。
+
+第47-52天：微调集成 + 项目一Day 47：微调模型部署（量化 + ONNX）。
+Day 48：集成 LangChain（Custom LLM）。
+Day 49：项目一：微调增强 RAG 系统。
+Day 50：项目一优化 + AB 测试。
+Day 51：Docker 容器化项目一。
+Day 52：项目一部署 + 文档。
+
+第53-60天：多项目 + 求职Day 53：项目二：移动端 AI 助手设计。
+Day 54：项目二前端（React Native）。
+Day 55：项目三：多 Agent 平台设计。
+Day 56：项目三后端 + 数据库。
+Day 57：简历 + 技术总结。
+Day 58：GitHub 作品集整理 + 演示视频。
+Day 59：面试模拟 + 项目演示。
+Day 60：终期复盘 + 职业规划。
+
