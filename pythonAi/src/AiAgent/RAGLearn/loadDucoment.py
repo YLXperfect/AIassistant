@@ -52,8 +52,8 @@ if __name__ == "__main__":
     [Document(metadata={'source': '/Users/eval/Desktop/项目/项目/Python AI项目/Aiassistant/AIassistant/pythonAi/ylx.txt'}, page_content='我是股神\n很爱学习\n爱炒股')]
     '''
 
-    # doc.query_document_pdf('jianli.pdf')
-    doc.query_document_web(web_path)
+    doc.query_document_pdf('jianli.pdf')
+    # doc.query_document_web(web_path)
 
     
 

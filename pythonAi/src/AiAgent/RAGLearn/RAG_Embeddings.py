@@ -65,7 +65,9 @@ vectorstore = Chroma.from_documents(
 
 # 简单相似度检索测试
 query = "这个人有哪些编程技能，在哪家公司工作过？"
-results = vectorstore.similarity_search(query, k=4)
+results = vectorstore.similarity_search(query, k=4) #similarity_search 低级方法，简单直接（适合测试/调试
+
+
 
 
 
