@@ -14,7 +14,7 @@ from langchain_core.messages import HumanMessage, AIMessage, SystemMessage,ToolM
 import os 
 from memory import ConversationMemory  #  导入对话管理类
 
-from tools import calculator, search_Weather,get_current_time,query_document #导入工具
+from tools import calculator, search_Weather,get_current_time,query_document,smart_document_qa #导入工具
 import time
 
 
@@ -42,7 +42,7 @@ def create_ai_agent(api_key):
         api_key=api_key,
     )
     
-    tools = [calculator, search_Weather,get_current_time,query_document]  
+    tools = [calculator, search_Weather,get_current_time,query_document,smart_document_qa]  
     # llm_with_tools = llm.bind_tools(tools)  #添加并绑定工具给模型
     # return llm_with_tools
     '''

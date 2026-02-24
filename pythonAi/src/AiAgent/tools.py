@@ -26,6 +26,8 @@ def 工具名(参数1: 类型, 参数2: 类型) -> 返回类型:
 from langchain.tools import tool
 from langchain_community.document_loaders import PyPDFLoader, TextLoader  
 
+from RAGLearn.RAG_chain import RAGEngineLCEL
+
 import math
 import requests
 from datetime import datetime
@@ -105,7 +107,7 @@ from langchain_community.embeddings import ZhipuAIEmbeddings
 
 
         
-
+# 初步RAG流程
 # 全局向量库
 vectorstore = None
 
@@ -178,7 +180,18 @@ def query_document(fileName:str,question:str)->str:
         return f" RAG 失败: {str(e)}"
 
 
+#RAG链工具   基于知识库中的文件回答问题，  chroma_db已经有数据
+rag_engine = RAGEngineLCEL(persist_directory="./chroma_db")
 
+@tool
+def smart_document_qa(question: str) -> str:
+    
+    """使用完整 RAG 链回答文档相关问题（支持多轮追问），文档是本地知识库中已经存在的。
+    参数:
+        question: 用户问题
+    """
+    answer = rag_engine.query_document(question)
+    return f"根据本地知识库的内容可以得到：\n{answer}"
         
 
 
