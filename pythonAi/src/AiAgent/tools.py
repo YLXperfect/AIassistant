@@ -186,10 +186,11 @@ rag_engine = RAGEngineLCEL(persist_directory="./chroma_db")
 @tool
 def smart_document_qa(question: str) -> str:
     
-    """使用完整 RAG 链回答文档相关问题（支持多轮追问），文档是本地知识库中已经存在的。
+    """使用完整 RAG 链回答文档相关问题（支持多轮追问），用于查询本地知识库中任何文档的智能RAG工具。对于个人信息查询，必用。输入：question，无需fileName
     参数:
         question: 用户问题
     """
+    
     answer = rag_engine.query_document(question)
     return f"根据本地知识库的内容可以得到：\n{answer}"
         

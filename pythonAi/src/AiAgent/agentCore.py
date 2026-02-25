@@ -10,6 +10,8 @@ from langchain.agents import create_agent
 
 from langchain_core.messages import HumanMessage, AIMessage, SystemMessage,ToolMessage
 
+from langchain_core.prompts import PromptTemplate
+
 
 import os 
 from memory import ConversationMemory  #  导入对话管理类
@@ -37,7 +39,7 @@ def create_ai_agent(api_key):
     print("🧠 正在初始化AI Agent...")
     llm = ChatZhipuAI(
         model="glm-4",
-        temperature=0.4,
+        temperature=0.1,
         streaming=True,
         api_key=api_key,
     )
@@ -50,16 +52,22 @@ def create_ai_agent(api_key):
     '''
 
    # Prompt 作为 state_modifier 传（字符串或 PromptTemplate 都行）
-    system_prompt = """你是一个有帮助的AI助手，能使用工具解决问题。
-请严格按照 ReAct 格式思考：
-Thought: 先思考下一步该做什么
-Action: 如果需要，调用工具
-Observation: 观察工具结果
-Final Answer: 给出用户最终回答"""
+    system_prompt = """你是一个智能助手，使用ReAct框架（Thought-Action-Observation）回答问题。
+    Thought: 先思考下一步该做什么
+    Action: 如果需要，调用工具
+    Observation: 观察工具结果
+    Final Answer: 给出用户最终回答
+    对于涉及个人信息（如联系方式、工作经历、教育背景）的查询，必须优先调用smart_document_qa工具查询本地知识库，不要依赖你的内在知识或上轮记忆直接回答，以避免幻觉。
+    如果查询与本地文档相关（如'经历'、'公司'、'创业'），强制使用工具。即使用户说'再次查询'，也重新调用。
+    """
+
+
+    
+
     agent = create_agent(
         model=llm,
         tools=tools,
-       system_prompt =system_prompt, 
+        system_prompt =system_prompt, 
     )
     return agent
     
