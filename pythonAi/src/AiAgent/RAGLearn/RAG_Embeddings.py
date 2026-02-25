@@ -33,19 +33,34 @@ embedding = embeddings.embed_query(text)  #相同的文本， 转化之后是相
 load_test = documentLoad()
 docs = load_test.query_document_pdf("jianli.pdf")
 
+# text_splitter = RecursiveCharacterTextSplitter(
+#             chunk_size=300,      # 每个chunk的大小
+#             chunk_overlap=50,    # 重叠的大小
+#             length_function=len, # 计算长度的函数
+#             separators=[
+#                 "\n\n",        # 空行（章节间隔）
+#                 "\n●", "\n## ", "\n# ", # 捕获简历中的章节标题
+#                 "。", "！", "？",        # 句子结束
+#                 "；", "，",              # 分句
+#                 " ",                     
+#                 ""
+#             ],   #pdf的分割优化
+#              )
 text_splitter = RecursiveCharacterTextSplitter(
-            chunk_size=300,      # 每个chunk的大小
-            chunk_overlap=50,    # 重叠的大小
-            length_function=len, # 计算长度的函数
-            separators=[
-                "\n\n",        # 空行（章节间隔）
-                "\n●", "\n## ", "\n# ", # 捕获简历中的章节标题
-                "。", "！", "？",        # 句子结束
-                "；", "，",              # 分句
-                " ",                     
-                ""
-            ],   #pdf的分割优化
-             )
+        chunk_size=600,          # 从300增加到600
+        chunk_overlap=100,       # 适当增加重叠
+        length_function=len,
+        separators=[
+            "\n\n",            # 段落
+            "\n●", "\n-",      # 简历中的项目符号
+            "\n",              # 换行
+            "。", "！", "？",   # 句子结束
+            "；", "，",         # 分句
+            " ",               # 空格
+            ""                 # 字符
+        ],
+        keep_separator=False    # 不保留分隔符，让块更干净
+    )
 
 chunks = text_splitter.split_documents(docs)
 
@@ -64,11 +79,8 @@ vectorstore = Chroma.from_documents(
 )
 
 # 简单相似度检索测试
-query = "这个人有哪些编程技能，在哪家公司工作过？"
-results = vectorstore.similarity_search(query, k=4) #similarity_search 低级方法，简单直接（适合测试/调试
-
-
-
+query = "这个人有哪些编程技能，在哪些公司工作过？"
+results = vectorstore.similarity_search(query, k=10) #similarity_search 低级方法，简单直接（适合测试/调试
 
 
 print("\n检索结果：")

@@ -57,6 +57,24 @@ class RAGEngineLCEL:
     # def add_document(self,file_name:str):
 
 
+    def debug_inspect_vectorstore(self, keyword: str = "工作经历", k: int = 20):
+        """调试：直接查看向量库中与关键词相关的所有文档块"""
+        # 1. 直接用相似度搜索获取原始块和分数
+        docs_with_score = self.vectorstore.similarity_search_with_score(keyword, k=k)
+    
+        print(f"\n🔍【向量库诊断】关键词: '{keyword}'")
+        print(f"检索到 {len(docs_with_score)} 个相关块\n")
+    
+        for i, (doc, score) in enumerate(docs_with_score):
+            print(f"--- 块 {i+1} (相似度: {score:.4f}) ---")
+            print(f"内容预览: {doc.page_content[:150].replace(chr(10), ' ')}")
+            print(f"元数据: {doc.metadata}")
+            print(f"完整内容长度: {len(doc.page_content)} 字符")
+            print()
+    
+        return docs_with_score
+
+
 
 
 # 测试
@@ -64,3 +82,12 @@ class RAGEngineLCEL:
 
 # answer = rag_chain.invoke(question)
 # print(f"最终回答: {answer}")
+
+
+
+
+# 使用示例
+if __name__ == "__main__":
+    engine = RAGEngineLCEL()
+    # 诊断所有包含“工作”的块
+    engine.debug_inspect_vectorstore("工作经历 2018 2020")
