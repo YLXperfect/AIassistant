@@ -10,8 +10,6 @@ current_dir = os.path.dirname(os.path.abspath(__file__))
 # 构建完整路径
 DOCUMENT_PATH = os.path.join(current_dir, "ylx.txt")
 
-
-
 def load_and_split_documents():
     """加载并分割文档"""
     try:

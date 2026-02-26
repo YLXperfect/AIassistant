@@ -1,5 +1,5 @@
 # 使用LangChain的Embeddings功能   嵌入模型  
-
+# 只做向量切割 + 向量数据库存储学习测试，  知识库的创建加载移动到 RAG_chain.py中
 from langchain_chroma import Chroma
 from langchain_community.embeddings import ZhipuAIEmbeddings
 from langchain_text_splitters import RecursiveCharacterTextSplitter
