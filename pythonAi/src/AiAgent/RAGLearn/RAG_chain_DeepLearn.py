@@ -40,44 +40,44 @@ class RAGEngineLCEL:
         self.vectorstore = self._load_or_create_vectorstore()
 
         # RAG 链
-        template = """根据以下上下文精准回答问题，只使用上下文信息，不要编造：
-        上下文：
-        {context}
+        # template = """根据以下上下文精准回答问题，只使用上下文信息，不要编造：
+        # 上下文：
+        # {context}
 
-        问题：{question}
+        # 问题：{question}
 
-        回答："""
-        prompt = ChatPromptTemplate.from_template(template)
-        # 高级检索器（MMR + 多查询）
-        retriever = MultiQueryRetriever.from_llm(
-            retriever=self.vectorstore.as_retriever(
-            search_type="mmr",
-            search_kwargs={"k": 8, "fetch_k": 20, "lambda_mult": 0.5}
-            ),
-            # search_type="similarity_score_threshold",  # 使用分数阈值检索 ,测试知识库无问题答案，返回预设友好回复
-            # search_kwargs={"k": 8, "score_threshold": 0.5 }
-            # ), # 设置一个基础阈值，低于此的不返回
+        # 回答："""
+        # prompt = ChatPromptTemplate.from_template(template)
+        # # 高级检索器（MMR + 多查询）
+        # retriever = MultiQueryRetriever.from_llm(
+        #     retriever=self.vectorstore.as_retriever(
+        #     search_type="mmr",
+        #     search_kwargs={"k": 8, "fetch_k": 20, "lambda_mult": 0.5}
+        #     ),
+        #     # search_type="similarity_score_threshold",  # 使用分数阈值检索 ,测试知识库无问题答案，返回预设友好回复
+        #     # search_kwargs={"k": 8, "score_threshold": 0.5 }
+        #     # ), # 设置一个基础阈值，低于此的不返回
 
-            llm=self.llm
-        )
+        #     llm=self.llm
+        # )
         
 
         # # 定义正常处理流程：prompt -> llm -> parser
-        normal_chain = prompt | self.llm | StrOutputParser()
+        # normal_chain = prompt | self.llm | StrOutputParser()
 
         # # 定义分支：如果输入字典中有 "__no_answer__" 键，直接返回预设消息 
-        branch = RunnableBranch(
-            (lambda x: isinstance(x, dict) and x.get("__no_answer__"),   #条件1
-             lambda x: "抱歉，我在知识库中没有找到相关信息。你可以尝试换个问题。"), #分支1
-            normal_chain  #   默认分支
-        )
+        # branch = RunnableBranch(
+        #     (lambda x: isinstance(x, dict) and x.get("__no_answer__"),   #条件1
+        #      lambda x: "抱歉，我在知识库中没有找到相关信息。你可以尝试换个问题。"), #分支1
+        #     normal_chain  #   默认分支
+        # )
         
-        self.rag_chain = (
-            #第一个字典：准备输入，从输入中提取出 “question” 和检索到的 “context
-            {"context": retriever, "question": RunnablePassthrough()}
-            | RunnableLambda(self.check_and_mark)  # 新增检查步骤
-            |branch
-        )
+        # self.rag_chain = (
+        #     #第一个字典：准备输入，从输入中提取出 “question” 和检索到的 “context
+        #     {"context": retriever, "question": RunnablePassthrough()}
+        #     | RunnableLambda(self.check_and_mark)  # 新增检查步骤
+        #     |branch
+        # )
         # '''{“context”: self.retriever, “question”: RunnablePassthrough()}：。它接收一个输入（即用户问题），然后并行执行两个操作：
         # retriever：接收问题，检索出相关文档，结果赋值给 context。
         # RunnablePassthrough()：简单地让原问题通过，赋值给 question。
@@ -190,7 +190,7 @@ class RAGEngineLCEL:
         if pdf_docs or txt_docs:
             text_splitter = RecursiveCharacterTextSplitter(
                 chunk_size=600,
-                chunk_overlap=60,
+                chunk_overlap=100,
                 separators=["\n\n", "\n", "。", "！", "？", "；", "，", " ", ""],
                 keep_separator=False
             )
@@ -283,6 +283,109 @@ class RAGEngineLCEL:
         print("✅ 新向量库创建完成。")
         return vectorstore
 
+    def get_qa_chain(self, chain_type: str = "stuff"):
+        """
+        返回三种高级链（
+        chain_type 支持: "stuff", "map_reduce", "refine"
+        """
+        if chain_type not in ["stuff", "map_reduce", "refine"]:
+            raise ValueError(f"不支持的 chain_type: {chain_type}")
+
+        # 共用 prompt
+        prompt = ChatPromptTemplate.from_template(
+            """根据以下上下文精准回答问题，只使用上下文信息，不要编造：
+            上下文：
+            {context}
+
+            问题：{question}
+
+            回答："""
+        )
+
+        # 共用高级 retriever（原来的 MultiQuery + 阈值）
+        retriever = MultiQueryRetriever.from_llm(
+            retriever=self.vectorstore.as_retriever(
+                search_type="similarity_score_threshold",
+                search_kwargs={"k": 8, "score_threshold": 0.5}
+            ),
+            llm=self.llm
+        )
+
+        # ============ 1. Stuff（默认链） ============
+        if chain_type == "stuff":
+            return (
+                {"context": retriever, "question": RunnablePassthrough()}
+                | RunnableLambda(self.check_and_mark)  # 你原来的防幻觉检查
+                | prompt
+                | self.llm
+                | StrOutputParser()
+            )
+
+        # ============ 2. Map-Reduce（并行处理每个文档，最后汇总） ============
+        elif chain_type == "map_reduce":
+            # Map 阶段：每个文档单独总结
+            map_prompt = ChatPromptTemplate.from_template(
+                "请总结以下文档片段，重点提取与问题相关的信息：\n\n{context}\n\n总结："
+            )
+            map_chain = map_prompt | self.llm | StrOutputParser()
+
+            # Reduce 阶段：汇总所有总结
+            reduce_prompt = ChatPromptTemplate.from_template(
+                """以下是多个文档片段的总结，请综合它们，给出最终答案：
+                {context}
+
+                问题：{question}
+                最终回答："""
+            )
+
+            def map_reduce_func(inputs):
+                docs = inputs["context"]          
+                question = inputs["question"]
+                # 并行 map
+                summaries = [map_chain.invoke({"context": doc.page_content}) for doc in docs]
+                combined = "\n\n".join(summaries)
+                # reduce
+                return reduce_prompt.invoke({"context": combined, "question": question})
+
+            return (
+                {"context": retriever, "question": RunnablePassthrough()}
+                | RunnableLambda(self.check_and_mark)
+                | RunnableLambda(map_reduce_func)
+                | self.llm
+                | StrOutputParser()
+            )
+
+        # ============ 3. Refine（迭代精炼） ============
+        else:  # refine
+            refine_prompt = ChatPromptTemplate.from_template(
+                """已有答案：{existing_answer}
+                现在有新的参考文档：{context}
+                请结合新文档，完善或修正之前的答案。
+                问题：{question}
+                最终答案："""
+            )
+
+            def refine_func(inputs):
+                docs = inputs["context"]
+                question = inputs["question"]
+                # 初始答案
+                answer = "暂无答案"
+                for doc in docs:
+                    answer = refine_prompt.invoke({
+                        "existing_answer": answer,
+                        "context": doc.page_content,
+                        "question": question
+                    })
+                    answer = self.llm.invoke(answer).content   # 迭代精炼
+                return answer
+
+            return (
+                {"context": retriever, "question": RunnablePassthrough()}
+                | RunnableLambda(self.check_and_mark)
+                | RunnableLambda(refine_func)
+            )
+
+
         
     def query_document(self,question:str):
         return self.rag_chain.invoke(question)
@@ -309,15 +412,17 @@ class RAGEngineLCEL:
 
 
 
-
+# 使用示例
 if __name__ == "__main__":
     engine = RAGEngineLCEL()
     # 诊断所有包含“工作”的块
-    # engine.debug_inspect_vectorstore(keyword="工作经历")
+    # engine.debug_inspect_vectorstore(keyword="简历中工作成果量化")
     # answer = engine.query_document("star法则是什么")
     # answer = engine.query_document("好的简历应该如何量化工作成果")
-    answer = engine.query_document("jianli.pdf里面的工作经历有哪些")
-    print(f"回答: {answer}")
+    # answer = engine.query_document("jianli.pdf里有哪些地方可以润色修改")
+    # print(f"回答: {answer}")
 
 
-    
+    stuff_chain = engine.get_qa_chain("stuff")
+    result = stuff_chain("star法则是什么")  
+    print(result)  # 应输出star.md内容
