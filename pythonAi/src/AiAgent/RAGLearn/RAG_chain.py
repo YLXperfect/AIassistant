@@ -12,17 +12,7 @@ from langchain_community.document_loaders import PyPDFLoader, TextLoader
 from langchain_text_splitters import RecursiveCharacterTextSplitter, MarkdownTextSplitter,MarkdownHeaderTextSplitter
 
 
-#增加回答的健壮性，如果知识库中没有返回该回答，防止模型幻觉
-def check_relevance(inputs):
-    context_docs = inputs.get("context", [])
-    # print(f'我是input{inputs}')
-    if not context_docs or len(context_docs) == 0:
-        # 如果检索为空，返回一个特殊标记，让后续步骤直接返回预设信息
-        print("答案未找到，进入预留友好返回")
-        return {"answer": "抱歉，我在知识库中没有找到相关信息。你可以尝试换个问题。"}
-    else:
-        # 正常情况，继续传递给prompt
-        return inputs
+
 
 class RAGEngineLCEL:
     def __init__(self, persist_directory="./chroma_db",docs_path="./knowledge_base"): #向量库路径， 知识库文件夹路径
@@ -61,58 +51,56 @@ class RAGEngineLCEL:
         # 高级检索器（MMR + 多查询）
         retriever = MultiQueryRetriever.from_llm(
             retriever=self.vectorstore.as_retriever(
-            # search_type="mmr",
-            # search_kwargs={"k": 8, "fetch_k": 20, "lambda_mult": 0.5}
-            # ),
-            search_type="similarity_score_threshold",  # 使用分数阈值检索
-            search_kwargs={"k": 8, "score_threshold": 0.5 }
-            ), # 设置一个基础阈值，低于此的不返回
+            search_type="mmr",
+            search_kwargs={"k": 8, "fetch_k": 20, "lambda_mult": 0.5}
+            ),
+            # search_type="similarity_score_threshold",  # 使用分数阈值检索 ,测试知识库无问题答案，返回预设友好回复
+            # search_kwargs={"k": 8, "score_threshold": 0.5 }
+            # ), # 设置一个基础阈值，低于此的不返回
 
             llm=self.llm
         )
-
+        #增加回答的健壮性，如果知识库中没有返回该回答，防止模型幻觉
         def check_and_mark(inputs):
             # inputs 是一个字典，包含 'context' 和 'question'
-            # context_docs = inputs.get("context", [])
-            # if not inputs.get('context') or len(inputs['context']) == 0:
-            #     # 检索为空，返回一个带特殊键的字典
-            #     print("答案未找到，进入预留友好返回")
-            #     return {"__no_answer__": True, "question": inputs["question"]}
-            # else:
-            #     return inputs  # 正常情况，原样返回
-            docs_with_score = inputs.get("context", [])
-            if not docs_with_score:
-                return {"__no_answer__": True, "question": inputs["question"]}
-    
-            # 检查最高分是否低于我们认为的“相关”阈值
-            max_score = max(score for _, score in docs_with_score)  # 假设结构是 [(doc, score), ...]
-            if max_score < 0.75:  # 阈值需要根据你的数据和嵌入模型调整
-                print(f"⚠️ 最高相关度分数 {max_score:.4f} 低于阈值，进入无答案分支")
+            context_docs = inputs.get("context", [])
+            if not inputs.get('context') or len(inputs['context']) == 0:
+                # 检索为空，返回一个带特殊键的字典
+                print("答案未找到，进入预留友好返回")
                 return {"__no_answer__": True, "question": inputs["question"]}
             else:
-            # 正常情况，提取文档列表供后续步骤使用
-                return {"context": [doc for doc, _ in docs_with_score], "question": inputs["question"]}
+                return inputs  # 正常情况，原样返回
+
+        # 检索type = similarity_score_threshold 的时候  测试是否能执行 if not docs_with_score:分支， 测试通过
+            # docs_with_score = inputs.get("context", [])
+            # if not docs_with_score:
+            #     return {"__no_answer__": True, "question": inputs["question"]}
+            # # 检查最高分是否低于我们认为的“相关”阈值
+            # max_score = max(score for _, score in docs_with_score)  
+            # if max_score < 0.75:  # 阈值需要根据你的数据和嵌入模型调整
+            #     print(f"⚠️ 最高相关度分数 {max_score:.4f} 低于阈值，进入无答案分支")
+            #     return {"__no_answer__": True, "question": inputs["question"]}
+            # else:
+            # # 正常情况，提取文档列表供后续步骤使用
+            #     return {"context": [doc for doc, _ in docs_with_score], "question": inputs["question"]}
 
         # 定义正常处理流程：prompt -> llm -> parser
         normal_chain = prompt | self.llm | StrOutputParser()
 
-        # 定义分支：如果输入字典中有 "__no_answer__" 键，直接返回预设消息
+        # 定义分支：如果输入字典中有 "__no_answer__" 键，直接返回预设消息 
         branch = RunnableBranch(
-            (lambda x: isinstance(x, dict) and x.get("__no_answer__"), 
-             lambda x: "抱歉，我在知识库中没有找到相关信息。你可以尝试换个问题。"),
-            normal_chain  # 否则走正常流程
+            (lambda x: isinstance(x, dict) and x.get("__no_answer__"),   #条件1
+             lambda x: "抱歉，我在知识库中没有找到相关信息。你可以尝试换个问题。"), #分支1
+            normal_chain  #   默认分支
         )
 
         self.rag_chain = (
             #第一个字典：准备输入，从输入中提取出 “question” 和检索到的 “context
             {"context": retriever, "question": RunnablePassthrough()}
             | RunnableLambda(check_and_mark)  # 新增检查步骤
-            # | prompt   #将上一步的输出（一个包含context和question的dict）传入提示模板
-            # | self.llm
-            # | StrOutputParser() #解析大模型的输出为字符串
             |branch
         )
-        '''{“context”: self.retriever, “question”: RunnablePassthrough()}：这是一个 RunnableParallel 的简写。它接收一个输入（即用户问题），然后并行执行两个操作：
+        '''{“context”: self.retriever, “question”: RunnablePassthrough()}：。它接收一个输入（即用户问题），然后并行执行两个操作：
         retriever：接收问题，检索出相关文档，结果赋值给 context。
         RunnablePassthrough()：简单地让原问题通过，赋值给 question。
         这一步的输出是一个字典：{“context”: “检索到的文本”, “question”: “原始问题”}。
