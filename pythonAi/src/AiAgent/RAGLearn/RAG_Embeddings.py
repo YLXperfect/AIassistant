@@ -68,7 +68,7 @@ chunks = text_splitter.split_documents(docs)
 vectorstore = Chroma.from_documents(
     documents=chunks,
     embedding=embeddings,
-    persist_directory="./chroma_db"
+    persist_directory="./chroma_dbtest"
 
     # collection_metadata={
     #     "hnsw:space": "cosine",           相似度计算方法

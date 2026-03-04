@@ -1,4 +1,5 @@
-第一阶段（第1-20天）：核心产品交付（智能研究助手 V1）目标：命令行 + Web 版 Agent（LangGraph ReAct + 多工具 + 完整 RAG），可面试 Demo。第1-7天：基础 + RAG 链Day 1：环境搭建 + LangChain 入门（已完成）。
+第一阶段（第1-20天）：核心产品交付（智能研究助手 V1）目标：命令行 + Web 版 Agent（LangGraph ReAct + 多工具 + 完整 RAG），可面试 Demo。
+第1-7天：基础 + RAG 链Day 1：环境搭建 + LangChain 入门（已完成）。
 Day 2：工具调用基础（计算器 + @tool
 ）。
 Day 3：多工具 + 记忆（天气 + 时间 + 手动 ReAct）。

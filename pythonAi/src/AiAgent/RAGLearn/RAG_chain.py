@@ -8,7 +8,7 @@ from langchain_classic.retrievers import MultiQueryRetriever  # 可选多查询
 import os
 import re  # 导入正则表达式用于清洗
 
-from langchain_community.document_loaders import PyPDFLoader, TextLoader
+from langchain_community.document_loaders import PyPDFLoader, TextLoader,UnstructuredWordDocumentLoader
 from langchain_text_splitters import RecursiveCharacterTextSplitter, MarkdownTextSplitter,MarkdownHeaderTextSplitter
 
 
@@ -21,7 +21,7 @@ class RAGEngineLCEL:
 
         self.embeddings = ZhipuAIEmbeddings(model="embedding-3", api_key=os.getenv("ZHIPUAI_API_KEY"))
 
-        self.llm = ChatZhipuAI(model="glm-4-flash", temperature=0.0, api_key=os.getenv("ZHIPUAI_API_KEY"))
+        self.llm = ChatZhipuAI(model="glm-4.6v", temperature=0.0, api_key=os.getenv("ZHIPUAI_API_KEY"))
 
         #测试代码， 事先就已经创建好了知识库
         #self.vectorstore = Chroma(persist_directory=persist_directory, embedding_function=self.embeddings)
@@ -48,7 +48,9 @@ class RAGEngineLCEL:
 
         回答："""
         prompt = ChatPromptTemplate.from_template(template)
-        # 高级检索器（MMR + 多查询）
+        # 高级检索器（MMR + 多查询）  MultiQueryRetriever 收到一个问题，用大模型把问题拆解成多个不同角度的相似问题，最后返回文档
+        #Given a query, use an LLM to write a set of queries.
+        #Retrieve docs for each query. Return the unique union of all retrieved docs
         retriever = MultiQueryRetriever.from_llm(
             retriever=self.vectorstore.as_retriever(
             search_type="mmr",
@@ -159,9 +161,9 @@ class RAGEngineLCEL:
                     loader = TextLoader(file_path, encoding='utf-8')
                     docs = loader.load()
                 #暂时不支持docx文件， 等安装Unstructured依赖包
-                # elif file_path.endswith('.docx'):
-                #     loader = UnstructuredWordDocumentLoader(file_path)
-                #     docs = loader.load()
+                elif file_path.endswith('.docx'):
+                    loader = UnstructuredWordDocumentLoader(file_path)
+                    docs = loader.load()
                 else:
                     print(f"⚠️ 跳过不支持的文件: {file_path}")
                     continue
@@ -184,7 +186,7 @@ class RAGEngineLCEL:
         pdf_docs = [doc for doc in all_docs if doc.metadata.get('source', '').endswith('.pdf')]
         md_docs = [doc for doc in all_docs if doc.metadata.get('source', '').endswith('.md')]
         txt_docs = [doc for doc in all_docs if doc.metadata.get('source', '').endswith('.txt')]
-        # docx_docs = [doc for doc in all_docs if doc.metadata.get('source', '').endswith('.docx')]
+        docx_docs = [doc for doc in all_docs if doc.metadata.get('source', '').endswith('.docx')]
 
         # 1. 处理 PDF 和 TXT（使用递归字符分割器，按自然边界）
         if pdf_docs or txt_docs:
@@ -232,15 +234,15 @@ class RAGEngineLCEL:
             print(f"📑 Markdown 分割完成，得到 {len(final_md_splits)} 个块")
 
         # 3. 处理 DOCX（先用简单分割，后续可优化为按样式分割）
-        # if docx_docs:
-        #     docx_splitter = RecursiveCharacterTextSplitter(
-        #         chunk_size=600,
-        #         chunk_overlap=100,
-        #         separators=["\n\n", "\n", "。", "！", "？", "；", "，", " ", ""]
-        #     )
-        #     docx_splits = docx_splitter.split_documents(docx_docs)
-        #     all_splits.extend(docx_splits)
-        #     print(f"📄 DOCX 分割完成，得到 {len(docx_splits)} 个块")
+        if docx_docs:
+            docx_splitter = RecursiveCharacterTextSplitter(
+                chunk_size=600,
+                chunk_overlap=100,
+                separators=["\n\n", "\n", "。", "！", "？", "；", "，", " ", ""]
+            )
+            docx_splits = docx_splitter.split_documents(docx_docs)
+            all_splits.extend(docx_splits)
+            print(f"📄 DOCX 分割完成，得到 {len(docx_splits)} 个块")
 
         print(f"✅ 总计生成 {len(all_splits)} 个文档块")
         return all_splits
