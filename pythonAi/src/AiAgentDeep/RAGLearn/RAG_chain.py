@@ -290,6 +290,10 @@ class RAGEngineLCEL:
         return self.rag_chain.invoke(question)
     # def add_document(self,file_name:str):
 
+    async def aquery_document(self, question: str):
+        """异步版本：使用 ainvoke 非阻塞执行 RAG 链"""
+        
+        return await self.rag_chain.ainvoke(question)
 
     def debug_inspect_vectorstore(self, keyword: str, k: int = 20):
         """调试：直接查看向量库中与关键词相关的所有文档块"""

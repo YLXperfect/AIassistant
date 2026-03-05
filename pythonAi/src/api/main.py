@@ -12,7 +12,6 @@ import shutil
 from pathlib import Path
 from typing import Annotated
 import tempfile  #临时文件管理
-from typing import List
 
 
 
@@ -23,13 +22,15 @@ import os
 import logging
 import re
 
-from src.AiAgent.RAGLearn import RAGEngineLCEL
+from src.AiAgentDeep.RAGLearn import RAGEngineLCEL
 
 
 
 from fastapi.responses import FileResponse  # 用于返回文件
 from docx import Document  # 今天学习知识点：python-docx 核心类
 import uuid
+
+from fastapi.middleware.cors import CORSMiddleware  # 导入CORS中间件
 
 #fastapi 搭建
 # 加载 .env 文件中的环境变量（例如 ZHIPUAI_API_KEY）
@@ -67,6 +68,14 @@ app = FastAPI(
     lifespan=lifespan
 )
 
+# ---------- CORS 配置（完整处理跨域） ----------
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:5173", "http://127.0.0.1:5173"],  # 允许前端开发服务器地址
+    allow_credentials=True,
+    allow_methods=["*"],      # 允许所有HTTP方法
+    allow_headers=["*"],      # 允许所有请求头
+)
 
 # 定义请求和响应的数据模型
 class AskRequest(BaseModel):
@@ -380,29 +389,60 @@ async def polish_text_with_llm(original_text: str, style: str = "professional") 
 
 
 
-@app.post("/polish_download_clean", response_class=FileResponse)
-async def polish_download_with_cleanup(request: PolishRequest, background_tasks: BackgroundTasks):
-    """
-    带自动清理的润色下载端点。
-    学习点：BackgroundTasks 在响应后执行清理。
-    """
-    if rag_engine is None:
-        raise HTTPException(status_code=503, detail="服务未就绪")
+# @app.post("/polish_download_clean", response_class=FileResponse)
+# async def polish_download_with_cleanup(request: PolishRequest, background_tasks: BackgroundTasks):
+#     """
+#     带自动清理的润色下载端点。
+#     学习点：BackgroundTasks 在响应后执行清理。
+#     """
+#     if rag_engine is None:
+#         raise HTTPException(status_code=503, detail="服务未就绪")
 
-    polished_text = await polish_text_with_llm(request.text, request.style)
+#     polished_text = await polish_text_with_llm(request.text, request.style)
+
+#     doc = Document()
+#     doc.add_heading('润色后的文本', level=1)
+#     for para in polished_text.split('\n'):
+#         if para.strip():
+#             doc.add_paragraph(para.strip())
+
+#     file_name = f"生成后的简历_{uuid.uuid4().hex[:8]}.docx"
+#     with tempfile.NamedTemporaryFile(delete=False, suffix=".docx") as tmp:
+#         doc.save(tmp.name)
+#         tmp_path = tmp.name
+
+#     # 在后台任务中添加删除临时文件的操作
+#     background_tasks.add_task(os.unlink, tmp_path)
+
+#     return FileResponse(
+#         path=tmp_path,
+#         filename=file_name,
+#         media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+#     )
+
+
+#下载
+class DownloadRequest(BaseModel):
+    text: str  # 已经润色好的文本
+    style: str = "professional"  # 可选，用于文件名或记录
+
+@app.post("/download_docx", response_class=FileResponse)
+async def download_docx(request: DownloadRequest, background_tasks: BackgroundTasks):
+    """直接接收润色后的文本，生成Word文档并返回"""
+    if not request.text or not request.text.strip():
+        raise HTTPException(status_code=400, detail="文本不能为空")
 
     doc = Document()
     doc.add_heading('润色后的文本', level=1)
-    for para in polished_text.split('\n'):
+    for para in request.text.split('\n'):
         if para.strip():
             doc.add_paragraph(para.strip())
 
-    file_name = f"生成后的简历_{uuid.uuid4().hex[:8]}.docx"
+    file_name = f"润色结果_{uuid.uuid4().hex[:8]}.docx"
     with tempfile.NamedTemporaryFile(delete=False, suffix=".docx") as tmp:
         doc.save(tmp.name)
         tmp_path = tmp.name
 
-    # 在后台任务中添加删除临时文件的操作
     background_tasks.add_task(os.unlink, tmp_path)
 
     return FileResponse(

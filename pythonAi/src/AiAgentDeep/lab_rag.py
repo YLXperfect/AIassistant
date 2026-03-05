@@ -4,7 +4,7 @@ from langchain_text_splitters import RecursiveCharacterTextSplitter
 import os
 
 #文件路径  绝对路径
-# DOCUMENT_PATH = "/Users/eval/Desktop/项目/项目/Python AI项目/Aiassistant/AIassistant/pythonAi/src/AiAgent/ylx.txt"   
+# DOCUMENT_PATH = "/Users/eval/Desktop/项目/项目/Python AI项目/Aiassistant/AIassistant/pythonAi/src/AiAgentDeep/ylx.txt"   
 # 获取当前脚本所在目录
 current_dir = os.path.dirname(os.path.abspath(__file__))
 # 构建完整路径

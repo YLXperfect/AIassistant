@@ -38,7 +38,7 @@ def create_ai_agent(api_key):
     """根据给定的API密钥，创建并返回一个AI Agent实例（模型）。需要手动管理ReAct流程"""
     print("🧠 正在初始化AI Agent...")
     llm = ChatZhipuAI(
-        model="glm-4",
+        model="glm-4.6",
         temperature=0.1,
         streaming=True,
         api_key=api_key,
