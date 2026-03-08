@@ -21,7 +21,7 @@ class RAGEngineLCEL:
 
         self.embeddings = ZhipuAIEmbeddings(model="embedding-3", api_key=os.getenv("ZHIPUAI_API_KEY"))
 
-        self.llm = ChatZhipuAI(model="glm-4.6v", temperature=0.0, api_key=os.getenv("ZHIPUAI_API_KEY"))
+        self.llm = ChatZhipuAI(model="glm-4.6", temperature=0.0, api_key=os.getenv("ZHIPUAI_API_KEY"),timeout = 90)
 
         #测试代码， 事先就已经创建好了知识库
         #self.vectorstore = Chroma(persist_directory=persist_directory, embedding_function=self.embeddings)

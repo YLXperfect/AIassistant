@@ -34,6 +34,8 @@ from datetime import datetime
 import pytz   
 import os
 
+import time
+
 # pytz 是Python第三方库（全名Python Time Zone），专门处理全球时区（包括夏令时自动调整）。
 
 import logging
@@ -195,6 +197,7 @@ def smart_document_qa(question: str) -> str:
         return "知识库未就绪"
     try:
         answer = _rag_engine.query_document(question)
+        print(f"调用了smart_document_qa工具")
         return answer
     except Exception as e:
         logger.error(f"知识库查询失败: {e}")
@@ -211,11 +214,17 @@ def polish_text(text: str, style: str = "professional") -> str:
         "friendly": "请用友好、亲切的语气润色以下文本，使其更易读、更有亲和力：\n\n",
     }
     prompt = style_prompts.get(style, style_prompts["professional"]) + text
+    start = time.time()
     try:
         response = _rag_engine.llm.invoke(prompt)
+        elapsed = time.time() - start
+        logger.info(f"LLM 润色成功调用耗时: {elapsed:.2f} 秒")
+        logger.info(f"response={response}")
         return response.content
     except Exception as e:
         logger.error(f"润色失败: {e}")
+        elapsed = time.time() - start
+        logger.info(f"LLM 润色调用耗时: {elapsed:.2f} 秒")
         return f"润色失败: {str(e)}"
 
 

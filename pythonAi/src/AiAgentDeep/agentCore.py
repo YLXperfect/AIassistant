@@ -14,9 +14,9 @@ from langchain_core.prompts import PromptTemplate
 
 
 import os 
-from memory import ConversationMemory  #  导入对话管理类
+from src.AiAgentDeep.memory import ConversationMemory  #  导入对话管理类
 
-from tools import calculator, search_Weather,get_current_time,query_document,smart_document_qa #导入工具
+from src.AiAgentDeep.tools import calculator, search_Weather,get_current_time,query_document,smart_document_qa #导入工具
 import time
 
 

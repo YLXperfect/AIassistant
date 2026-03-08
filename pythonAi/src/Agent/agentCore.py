@@ -42,10 +42,11 @@ def create_ai_agent(api_key,rag_engine):
         temperature=0.1,
         streaming=True,
         api_key=api_key,
+        timeout=90
     )
 
 
-     # 注入RAG引擎到工具
+    # 注入RAG引擎到工具
     init_tools(rag_engine)
     tools = [calculator, search_Weather,get_current_time,query_document,smart_document_qa,polish_text]  
     # llm_with_tools = llm.bind_tools(tools)  #添加并绑定工具给模型
@@ -57,7 +58,7 @@ def create_ai_agent(api_key,rag_engine):
    # Prompt 作为 state_modifier 传（字符串或 PromptTemplate 都行）
     system_prompt = """你是一个智能简历助手，可以帮助用户解答简历相关问题、润色文本以及进行简单计算。
                     当用户询问简历写作技巧（如STAR法则、量化成果、项目描述）或具体简历内容时，必须使用 smart_document_qa 工具查询知识库。
-                    当用户要求润色文本时（例如包含"润色"、"优化"、"改进"等词），使用 polish_text 工具。用户可能指定风格（professional/concise/friendly），如果不指定则默认 professional。
+                    当用户要求润色文本时，首先，调用 smart_document_qa 工具，查询简历写作技巧。然后，结合你从知识库获取的规则和用户提供的原文，调用 polish_text 工具进行润色，并且只生成一个详细版的结果，将 polish_text工具 返回的结果作为最终答案{FINAL ANSWER}直接输出，不要重复调用工具。
                     对于数学计算，使用 calculator 工具。天气查询使用search_Weather工具，获取时间使用get_current_time工具
                     回答要简洁、有帮助，如果不知道就说不知道。
                     """

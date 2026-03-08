@@ -24,7 +24,7 @@ from src.Agent.memory import ConversationMemory
 from fastapi.responses import FileResponse
 from docx import Document
 
-from langchain_community.document_loaders import PyPDFLoader, TextLoader,UnstructuredWordDocumentLoader
+
 load_dotenv()
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -79,6 +79,16 @@ class PolishRequest(BaseModel):
     text: str
     style: str = "professional"
 
+
+from langchain_core.callbacks import BaseCallbackHandler
+
+class DebugCallbackHandler(BaseCallbackHandler):
+    def on_agent_action(self, action, **kwargs):
+        logger.info(f"Agent Action: {action.log}")
+    def on_agent_finish(self, finish, **kwargs):
+        logger.info(f"Agent Finish: {finish.return_values}")
+
+from langchain_core.runnables import RunnableConfig
 
 @app.post("/ask")
 async def ask_endpoint(
@@ -155,12 +165,17 @@ async def ask_endpoint(
     langchain_messages = get_memory_as_langchain_messages(memory)
 
     try:
+        config = RunnableConfig(callbacks=[DebugCallbackHandler()])
+
         input_dict = {"messages": langchain_messages}
 
         loop = asyncio.get_event_loop()
-        response = await loop.run_in_executor(None, agent.invoke, input_dict)
+        # response = await loop.run_in_executor(None, agent.invoke, input_dict)
 
-    # 提取答案（可能需要根据返回结构调整）
+        response = await loop.run_in_executor(None, lambda: agent.invoke(input_dict, config=config))
+        print(f"agent答案={response}")
+
+    # 提取答案
         if hasattr(response, 'content'):
             answer = response.content
         elif isinstance(response, dict) and 'messages' in response:
