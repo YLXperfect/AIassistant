@@ -98,18 +98,7 @@ class RAGEngineLCEL:
         else:
             return inputs  # 正常情况，原样返回
 
-        # 检索type = similarity_score_threshold 的时候  测试是否能执行 if not docs_with_score:分支， 测试通过
-            # docs_with_score = inputs.get("context", [])
-            # if not docs_with_score:
-            #     return {"__no_answer__": True, "question": inputs["question"]}
-            # # 检查最高分是否低于我们认为的“相关”阈值
-            # max_score = max(score for _, score in docs_with_score)  
-            # if max_score < 0.75:  # 阈值需要根据你的数据和嵌入模型调整
-            #     print(f"⚠️ 最高相关度分数 {max_score:.4f} 低于阈值，进入无答案分支")
-            #     return {"__no_answer__": True, "question": inputs["question"]}
-            # else:
-            # # 正常情况，提取文档列表供后续步骤使用
-            #     return {"context": [doc for doc, _ in docs_with_score], "question": inputs["question"]}
+        
     def _scan_knowledge_base(self):
         """扫描knowledge_base文件夹，获取所有支持的文件"""
         supported_exts = ['.pdf', '.md', '.txt',]
@@ -305,8 +294,9 @@ class RAGEngineLCEL:
         # 共用高级 retriever（原来的 MultiQuery + 阈值）
         retriever = MultiQueryRetriever.from_llm(
             retriever=self.vectorstore.as_retriever(
-                search_type="similarity_score_threshold",
-                search_kwargs={"k": 8, "score_threshold": 0.5}
+                
+                search_type="mmr",
+                search_kwargs={"k": 8, "fetch_k": 20, "lambda_mult": 0.5}
             ),
             llm=self.llm
         )
@@ -323,15 +313,14 @@ class RAGEngineLCEL:
 
         # ============ 2. Map-Reduce（并行处理每个文档，最后汇总） ============
         elif chain_type == "map_reduce":
-            # Map 阶段：每个文档单独总结
+        # 优化 Map prompt（Day8 知识点：Map 阶段需强相关过滤，避免混杂无关文档如“自主创业”）
             map_prompt = ChatPromptTemplate.from_template(
-                "请总结以下文档片段，重点提取与问题相关的信息：\n\n{context}\n\n总结："
+                "如果文档片段与问题相关，总结关键信息；如果无关，直接返回'无关'：\n\n{context}\n\n总结："
             )
             map_chain = map_prompt | self.llm | StrOutputParser()
 
-            # Reduce 阶段：汇总所有总结
             reduce_prompt = ChatPromptTemplate.from_template(
-                """以下是多个文档片段的总结，请综合它们，给出最终答案：
+             """汇总以下相关总结，给出最终答案（忽略'无关'）：
                 {context}
 
                 问题：{question}
@@ -339,12 +328,12 @@ class RAGEngineLCEL:
             )
 
             def map_reduce_func(inputs):
-                docs = inputs["context"]          
+                docs = inputs["context"]
                 question = inputs["question"]
-                # 并行 map
                 summaries = [map_chain.invoke({"context": doc.page_content}) for doc in docs]
-                combined = "\n\n".join(summaries)
-                # reduce
+                # 过滤无关（Day8 优化）
+                filtered_summaries = [s for s in summaries if s != '无关' and len(s) > 20]
+                combined = "\n\n".join(filtered_summaries)
                 return reduce_prompt.invoke({"context": combined, "question": question})
 
             return (
@@ -353,30 +342,46 @@ class RAGEngineLCEL:
                 | RunnableLambda(map_reduce_func)
                 | self.llm
                 | StrOutputParser()
-            )
+                )
 
         # ============ 3. Refine（迭代精炼） ============
         else:  # refine
+            
+            # Refine 提示词：明确要求模型判断相关性，并基于此更新答案
             refine_prompt = ChatPromptTemplate.from_template(
-                """已有答案：{existing_answer}
-                现在有新的参考文档：{context}
-                请结合新文档，完善或修正之前的答案。
-                问题：{question}
-                最终答案："""
+                """我们正在逐步优化一个答案。
+                当前已有的答案：{existing_answer}
+                现在有一个新的文档片段（可能与问题相关，也可能不相关）：
+                ---
+                {context}
+                ---
+                原始问题：{question}
+
+                任务：
+                1. 判断新文档片段是否与问题相关。
+                2. 如果相关，请结合新文档的信息，**完善或修正**当前的答案。
+                3. 如果不相关，请**直接输出当前的答案，不做任何修改**。
+                请输出更新后的最终答案："""
             )
 
             def refine_func(inputs):
                 docs = inputs["context"]
                 question = inputs["question"]
-                # 初始答案
-                answer = "暂无答案"
-                for doc in docs:
-                    answer = refine_prompt.invoke({
+                # 初始答案为空
+                answer = "正在根据资料逐步生成答案……" 
+
+                for i, doc in enumerate(docs):
+                    # 【移除硬编码过滤】将判断逻辑交给提示词
+                    # 准备本轮迭代的输入
+                    chain_input = refine_prompt.invoke({
                         "existing_answer": answer,
                         "context": doc.page_content,
                         "question": question
                     })
-                    answer = self.llm.invoke(answer).content   # 迭代精炼
+                    # 调用模型，获取更新后的答案
+                    answer = self.llm.invoke(chain_input).content
+                    print(f"--- 处理第 {i+1} 个文档后，答案更新为 ---\n{answer}\n") # 调试用
+
                 return answer
 
             return (
@@ -421,8 +426,19 @@ if __name__ == "__main__":
     # answer = engine.query_document("好的简历应该如何量化工作成果")
     # answer = engine.query_document("jianli.pdf里有哪些地方可以润色修改")
     # print(f"回答: {answer}")
+    # engine.debug_inspect_vectorstore(keyword="2018/05–2020/04 蓝色互动的工作经历")
 
+    question = "用STAR法则优化 jianli.pdf 中 2018/05–2020/04 蓝色互动的工作经历"
 
-    stuff_chain = engine.get_qa_chain("stuff")
-    result = stuff_chain("star法则是什么")  
-    print(result)  # 应输出star.md内容
+    print("=== Stuff ===")
+    stuff_result = engine.get_qa_chain("stuff").invoke(question)
+    print(stuff_result)
+
+    print("\n=== Map-Reduce ===")
+    mr_result = engine.get_qa_chain("map_reduce").invoke(question)
+    print(mr_result)
+
+    print("\n=== Refine ===")
+    refine_result = engine.get_qa_chain("refine").invoke(question)
+    print(refine_result)
+    
