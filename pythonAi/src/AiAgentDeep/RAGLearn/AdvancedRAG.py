@@ -314,6 +314,7 @@ class RAGEngineLCEL:
         # ============ 2. Map-Reduce（并行处理每个文档，最后汇总） ============
         elif chain_type == "map_reduce":
         # 优化 Map prompt（Day8 知识点：Map 阶段需强相关过滤，避免混杂无关文档如“自主创业”）
+        #MapReduceDocumentsChain 手动实现官方的MapReduceDocumentsChain 逻辑
             map_prompt = ChatPromptTemplate.from_template(
                 "如果文档片段与问题相关，总结关键信息；如果无关，直接返回'无关'：\n\n{context}\n\n总结："
             )
@@ -330,8 +331,9 @@ class RAGEngineLCEL:
             def map_reduce_func(inputs):
                 docs = inputs["context"]
                 question = inputs["question"]
+                #对每个文档快进行独立总结
                 summaries = [map_chain.invoke({"context": doc.page_content}) for doc in docs]
-                # 过滤无关（Day8 优化）
+                
                 filtered_summaries = [s for s in summaries if s != '无关' and len(s) > 20]
                 combined = "\n\n".join(filtered_summaries)
                 return reduce_prompt.invoke({"context": combined, "question": question})
@@ -348,6 +350,7 @@ class RAGEngineLCEL:
         else:  # refine
             
             # Refine 提示词：明确要求模型判断相关性，并基于此更新答案
+            #手动实现官方的 RefineDocumentsChain逻辑
             refine_prompt = ChatPromptTemplate.from_template(
                 """我们正在逐步优化一个答案。
                 当前已有的答案：{existing_answer}
@@ -371,7 +374,6 @@ class RAGEngineLCEL:
                 answer = "正在根据资料逐步生成答案……" 
 
                 for i, doc in enumerate(docs):
-                    # 【移除硬编码过滤】将判断逻辑交给提示词
                     # 准备本轮迭代的输入
                     chain_input = refine_prompt.invoke({
                         "existing_answer": answer,
@@ -442,3 +444,55 @@ if __name__ == "__main__":
     refine_result = engine.get_qa_chain("refine").invoke(question)
     print(refine_result)
     
+
+
+#     # 两种写法
+#     prompt = ChatPromptTemplate.from_template(
+#             """根据以下上下文精准回答问题，只使用上下文信息，不要编造：
+#             上下文：
+#             {context}
+
+#             问题：{question}
+
+#             回答："""
+#         )
+#     return (
+#                 {"context": retriever, "question": RunnablePassthrough()}
+#                 | RunnableLambda(self.check_and_mark)  # 你原来的防幻觉检查
+#                 | prompt
+#                 | self.llm
+#                 | StrOutputParser()
+#             )
+
+# #写法不一样，
+#      map_prompt = ChatPromptTemplate.from_template(
+#                 "如果文档片段与问题相关，总结关键信息；如果无关，直接返回'无关'：\n\n{context}\n\n总结："
+#             )
+#             map_chain = map_prompt | self.llm | StrOutputParser()
+
+#             reduce_prompt = ChatPromptTemplate.from_template(
+#              """汇总以下相关总结，给出最终答案（忽略'无关'）：
+#                 {context}
+
+#                 问题：{question}
+#                 最终回答："""
+#             )
+
+#             def map_reduce_func(inputs):
+#                 docs = inputs["context"]
+#                 question = inputs["question"]
+#                 #对每个文档快进行独立总结
+#                 summaries = [map_chain.invoke({"context": doc.page_content}) for doc in docs]
+                
+#                 filtered_summaries = [s for s in summaries if s != '无关' and len(s) > 20]
+#                 combined = "\n\n".join(filtered_summaries)
+#                 #这里返回了一个 PromptValue 
+#                 return reduce_prompt.invoke({"context": combined, "question": question})
+
+#             return (
+#                 {"context": retriever, "question": RunnablePassthrough()}
+#                 | RunnableLambda(self.check_and_mark)
+#                 | RunnableLambda(map_reduce_func)
+#                 | self.llm
+#                 | StrOutputParser()
+#                 )
