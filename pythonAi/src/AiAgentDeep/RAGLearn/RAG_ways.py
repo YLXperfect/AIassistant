@@ -13,6 +13,7 @@ from langchain_community.retrievers import BM25Retriever
 from flashrank import Ranker
 from langchain_community.document_compressors import FlashrankRerank
 
+from clean_data import clean_md_to_df,clean_pdf
 
 
 from langchain_core.documents import Document
@@ -49,7 +50,6 @@ CHROMA_PERSIST_DIR = "./chroma_db"
 # src/AiAgentDeep/RAG_ways.py
 # Day9 主文件：实现混合检索 + 重排序 + metadata 过滤
 # 目标：优化知识库检索质量，特别是针对简历规则、STAR 方法、模板的精准召回
-# 依赖安装（请在终端执行）：
 
 
 
@@ -69,16 +69,22 @@ def load_documents_with_metadata() -> List[Document]:
             print(f"警告：文件不存在，跳过 -> {path}")
             continue
         
-        # 根据文件类型选择 loader
+        # 根据文件类型选择 loader  导入之后根据分类进行数据清洗
         if path.lower().endswith((".md", ".markdown")):
             loader = UnstructuredMarkdownLoader(path)
+            raw_docs = loader.load()
+            cleaned_docs = clean_md_to_df(raw_docs)
         elif path.lower().endswith(".pdf"):
             loader = PyPDFLoader(path)
+            
+            raw_docs = loader.load()
+            cleaned_docs = clean_pdf(raw_docs)
         else:
             print(f"不支持的文件格式，跳过 -> {path}")
             continue
         
-        docs = loader.load()
+        # docs = loader.load()
+        docs = cleaned_docs
         
         # 为该文件的所有文档片段添加 metadata
         for doc in docs:
