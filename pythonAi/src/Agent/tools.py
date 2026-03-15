@@ -26,8 +26,6 @@ def 工具名(参数1: 类型, 参数2: 类型) -> 返回类型:
 from langchain.tools import tool
 from langchain_community.document_loaders import PyPDFLoader, TextLoader  
 
-from src.Agent.RAG_chain import RAGEngineLCEL
-
 import math
 import requests
 from datetime import datetime
@@ -45,12 +43,14 @@ logger = logging.getLogger(__name__)
 #集成agent到服务， 在初始化工具的时候 引入rag_engine
 # 全局变量，用于注入RAG引擎（在初始化Agent时设置）
 _rag_engine = None
+_llm = None
 
-def init_tools(rag_engine):
-    """在创建Agent前调用，注入RAG引擎实例"""
-    global _rag_engine
+def init_tools(rag_engine, llm):
+    """在创建Agent前调用，注入RAG引擎实例与Agent LLM实例"""
+    global _rag_engine, _llm
     _rag_engine = rag_engine
-    logger.info("工具已注入RAG引擎")
+    _llm = llm
+    logger.info("工具已注入RAG引擎与Agent LLM")
 
 # @tool 把函数变成了一个具有标准化接口的“工具对象”
 @tool
@@ -196,27 +196,72 @@ def smart_document_qa(question: str) -> str:
     if _rag_engine is None:
         return "知识库未就绪"
     try:
-        answer = _rag_engine.query_document(question)
+        # 方案A：RAG只检索；如果传入了Agent LLM，则启用MultiQuery改写提升召回
+        answer = _rag_engine.get_context(question, k=6, search_type="mmr", llm=_llm)
         print(f"调用了smart_document_qa工具")
         return answer
     except Exception as e:
         logger.error(f"知识库查询失败: {e}")
         return f"查询知识库时出错: {str(e)}"
-        
+
+
 @tool
-def polish_text(text: str, style: str = "professional") -> str:
-    """润色文本。当用户要求润色文本时使用。支持风格：professional（专业）、concise（简洁）、friendly（友好）。"""
+def extract_relevant_chunks(file_text: str, question: str, k: int = 4) -> str:
+    """从用户上传的文档文本中抽取与问题最相关的片段（文档块）。
+    
+    使用场景：
+    - 用户上传简历/文档，并要求“基于文档内容进行润色/改写/总结/提取要点”
+    
+    Args:
+        file_text: 用户上传文件解析出的纯文本（可能较长）
+        question: 用户意图/任务描述（如“请按STAR法则润色这段经历”）
+        k: 返回的相关块数量（默认4）
+    """
     if _rag_engine is None:
+        return "服务未就绪"
+    if not file_text or not file_text.strip():
+        return "未提供可用的文件文本"
+    try:
+        splitter = RecursiveCharacterTextSplitter(chunk_size=800, chunk_overlap=120)
+        docs = splitter.create_documents([file_text])
+        if not docs:
+            return "文件内容为空"
+        # 为上传文本建立临时向量库（内存）
+        tmp_vs = Chroma.from_documents(documents=docs, embedding=_rag_engine.embeddings, persist_directory=None)
+        retriever = tmp_vs.as_retriever(search_type="mmr", search_kwargs={"k": int(k), "fetch_k": max(12, int(k) * 3), "lambda_mult": 0.5})
+        rel_docs = retriever.invoke(question)
+        context = "\n\n".join([d.page_content for d in rel_docs if getattr(d, "page_content", None)])
+        return f"（以下为从上传文档中抽取的相关片段）\n{context}" if context.strip() else "未抽取到有效片段"
+    except Exception as e:
+        logger.error(f"抽取上传文档片段失败: {e}")
+        return f"抽取失败: {str(e)}"
+        
+@tool(return_direct=True)
+def polish_text(text: str, style: str = "professional", rules_context: str = "", file_context: str = "") -> str:
+    """润色文本（结合知识库规则 + 上传文档相关片段）。
+    
+    支持风格：professional（专业）、concise（简洁）、friendly（友好）。
+    当有 rules_context / file_context 时，会优先遵循其中的规则与事实。
+    """
+    if _llm is None:
         return "服务未就绪"
     style_prompts = {
         "professional": "请用专业、正式的语气润色以下文本，保持原意但提升表达质量，使语言更精炼、逻辑更清晰：\n\n",
         "concise": "请用简洁、精炼的语言重写以下文本，去除冗余词汇，保留核心信息：\n\n",
         "friendly": "请用友好、亲切的语气润色以下文本，使其更易读、更有亲和力：\n\n",
     }
-    prompt = style_prompts.get(style, style_prompts["professional"]) + text
+    prompt = (
+        style_prompts.get(style, style_prompts["professional"])
+        + "\n【必须遵循的简历写作规则（来自知识库）】\n"
+        + (rules_context.strip() or "（无）")
+        + "\n\n【与本次任务相关的上传文档片段（仅供参考，不要编造未出现的信息）】\n"
+        + (file_context.strip() or "（无）")
+        + "\n\n【需要润色的原文】\n"
+        + text
+    )
     start = time.time()
     try:
-        response = _rag_engine.llm.invoke(prompt)
+        response = _llm.invoke(prompt)
         elapsed = time.time() - start
         logger.info(f"LLM 润色成功调用耗时: {elapsed:.2f} 秒")
         logger.info(f"response={response}")

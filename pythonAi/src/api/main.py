@@ -23,6 +23,7 @@ from src.Agent.agentCore import create_ai_agent, get_api_key, get_memory_as_lang
 from src.Agent.memory import ConversationMemory
 from fastapi.responses import FileResponse
 from docx import Document
+from langchain_community.document_loaders import UnstructuredWordDocumentLoader,PyPDFLoader
 
 
 load_dotenv()

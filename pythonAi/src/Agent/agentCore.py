@@ -16,7 +16,7 @@ from langchain_core.prompts import PromptTemplate
 import os 
 from src.Agent.memory import ConversationMemory  #  导入对话管理类
 
-from src.Agent.tools import calculator, search_Weather,get_current_time,query_document,smart_document_qa,polish_text ,init_tools#导入工具
+from src.Agent.tools import calculator, search_Weather,get_current_time,query_document,smart_document_qa,extract_relevant_chunks,polish_text ,init_tools#导入工具
 import time
 
 
@@ -46,9 +46,9 @@ def create_ai_agent(api_key,rag_engine):
     )
 
 
-    # 注入RAG引擎到工具
-    init_tools(rag_engine)
-    tools = [calculator, search_Weather,get_current_time,query_document,smart_document_qa,polish_text]  
+    # 注入RAG引擎与Agent LLM到工具（方案A：RAG仅检索，生成统一走Agent LLM）
+    init_tools(rag_engine, llm)
+    tools = [calculator, search_Weather,get_current_time,query_document,smart_document_qa,extract_relevant_chunks,polish_text]  
     # llm_with_tools = llm.bind_tools(tools)  #添加并绑定工具给模型
     # return llm_with_tools
     '''
@@ -56,12 +56,21 @@ def create_ai_agent(api_key,rag_engine):
     '''
 
    # Prompt 作为 state_modifier 传（字符串或 PromptTemplate 都行）
-    system_prompt = """你是一个智能简历助手，可以帮助用户解答简历相关问题、润色文本以及进行简单计算。
-                    当用户询问简历写作技巧（如STAR法则、量化成果、项目描述）或具体简历内容时，必须使用 smart_document_qa 工具查询知识库。
-                    当用户要求润色文本时，首先，调用 smart_document_qa 工具，查询简历写作技巧。然后，结合你从知识库获取的规则和用户提供的原文，调用 polish_text 工具进行润色，并且只生成一个详细版的结果，将 polish_text工具 返回的结果作为最终答案{FINAL ANSWER}直接输出，不要重复调用工具。
-                    对于数学计算，使用 calculator 工具。天气查询使用search_Weather工具，获取时间使用get_current_time工具
-                    回答要简洁、有帮助，如果不知道就说不知道。
-                    """
+    system_prompt = """你是一个智能简历助手，可以帮助用户进行简历知识库问答、基于规则的简历润色、以及简单计算。
+
+【知识库问答】
+- 当用户的问题是“简历写作技巧/STAR法则/量化成果/项目描述”等通用规则或解释型问题：必须调用 smart_document_qa 工具检索知识库规则片段，然后基于检索结果生成回答。
+
+【简历润色（可能包含上传文件）】
+- 当用户要求“润色/改写/优化简历内容”时：
+  1) 先调用 smart_document_qa：检索与润色任务相关的写作规则（例如：STAR、量化、行动动词、结构等）。
+  2) 如果用户上传了文件文本（对话中会包含“用户上传了文件，内容如下：”），再调用 extract_relevant_chunks：从上传文本里抽取与润色任务最相关的文档块。
+  3) 最后调用 polish_text(text=需要润色的原文, rules_context=知识库规则片段, file_context=上传文档相关片段, style=用户指定风格) 生成润色结果。
+- 只生成一个最终详细版结果，并将 polish_text 工具返回的内容作为最终答案直接输出，不要重复调用工具。
+
+【其他】
+- 数学计算用 calculator；天气查询用 search_Weather；获取时间用 get_current_time。
+- 回答要简洁、有帮助；如果信息不足就明确说明需要用户补充哪部分原文或目标岗位。"""
 
 
     

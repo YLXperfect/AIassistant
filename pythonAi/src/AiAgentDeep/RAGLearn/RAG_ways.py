@@ -19,7 +19,7 @@ from clean_data import clean_md_to_df,clean_pdf
 from langchain_core.documents import Document
 import os
 
-from langchain_community.document_loaders import PyPDFLoader,UnstructuredMarkdownLoader,TextLoader
+from langchain_community.document_loaders import PyPDFLoader,UnstructuredMarkdownLoader,TextLoader,UnstructuredWordDocumentLoader
 
 from langchain_text_splitters import RecursiveCharacterTextSplitter, MarkdownTextSplitter,MarkdownHeaderTextSplitter
 from typing import List, Dict, Any, Optional
@@ -40,6 +40,10 @@ KNOWLEDGE_FILES_CONFIG: List[Dict[str, Any]] = [
     {
         "path": "knowledge_base/template.md",
         "metadata": {"source": "template.md", "type": "template", "category": "template_education"}
+    },
+    {
+        "path": "knowledge_base/简历模版.docx",
+        "metadata": {"source": "简历模版.docx", "type": "template", "category": "template"}
     },
     
 ]
@@ -154,9 +158,18 @@ class RAGPipeline:
     def _build_retrievers(self):
         """Day9 核心：混合检索 + rerank"""
         # 语义检索器 语义检索召回6块
-        semantic_retriever = self.vectorstore.as_retriever(
+        # semantic_retriever = self.vectorstore.as_retriever(
+        #     search_type="mmr",
+        #     search_kwargs={"k": 6, "fetch_k": 20, "lambda_mult": 0.5}
+        # )
+        #增加问题改写
+        semantic_retriever = MultiQueryRetriever.from_llm(
+            retriever=self.vectorstore.as_retriever(
             search_type="mmr",
             search_kwargs={"k": 6, "fetch_k": 20, "lambda_mult": 0.5}
+            ),
+            include_original=True,
+            llm = self.llm
         )
         
         
@@ -231,11 +244,14 @@ if __name__ == "__main__":
         print(f"问题：{q}")
         print("回答：", rag.query(q))
         print("-" * 60)
+
+    docs = rag.compression_retriever.invoke(test_queries)
+    print(f"检索到 {len(docs)} 个文档片段")
     
     # 只召回 rule 类型的文档
-    print("\n=== 只召回 type='rule' 的文档 ===\n")
-    rule_filter = {"type": "rule"}
-    for q in test_queries:
-        print(f"问题：{q}")
-        print("回答（仅规则）：", rag.query(q, metadata_filter=rule_filter))
-        print("-" * 60)
+    # print("\n=== 只召回 type='rule' 的文档 ===\n")
+    # rule_filter = {"type": "rule"}
+    # for q in test_queries:
+    #     print(f"问题：{q}")
+    #     print("回答（仅规则）：", rag.query(q, metadata_filter=rule_filter))
+    #     print("-" * 60)

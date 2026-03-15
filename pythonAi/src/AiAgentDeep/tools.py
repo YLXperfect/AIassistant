@@ -179,6 +179,22 @@ def query_document(fileName:str,question:str)->str:
     except Exception as e:
         return f" RAG 失败: {str(e)}"
 
+# @tool
+# def clean_resume(file_path: str) -> str:
+#     """清洗用户上传的简历文件（PDF/MD），返回清洗后的文本内容。
+#     用于 RAG 预处理或 Agent 工具调用。"""
+#     if file_path.lower().endswith(".pdf"):
+#         docs = clean_pdf(file_path)
+#     elif file_path.lower().endswith((".md", ".markdown")):
+#         loader = UnstructuredMarkdownLoader(file_path)
+#         raw_docs = loader.load()
+#         docs = clean_md_to_df(raw_docs)
+#     else:
+#         return "不支持的文件格式"
+
+#     # 简单合并成字符串返回（Agent 好用）
+#     cleaned_text = "\n\n".join(doc.page_content for doc in docs)
+#     return cleaned_text
 
 #RAG链工具   基于知识库中的文件回答问题，  chroma_db已经有数据
 rag_engine = RAGEngineLCEL(persist_directory="./chroma_db")
@@ -211,3 +227,5 @@ if __name__ == "__main__":
     print(calculator.name)
 #测试调用， 用invoke
     print(search_Weather.invoke({'city':"成都"}))
+
+

@@ -68,7 +68,6 @@ def clean_md_to_df(docs: list[Document]) -> list[Document]:
 
     df = pd.DataFrame(data)
 
-    # 如果你最终还是想返回 Document 列表（给下游 splitter 用）
     cleaned_docs = []
     for _, row in df.iterrows():
         content = f"{row['rule_type']}\n{row['description']}"

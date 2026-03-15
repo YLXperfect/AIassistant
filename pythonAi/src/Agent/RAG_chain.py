@@ -1,27 +1,28 @@
 from langchain_chroma import Chroma
 from langchain_community.embeddings import ZhipuAIEmbeddings
-from langchain_community.chat_models import ChatZhipuAI
-from langchain_core.prompts import ChatPromptTemplate
-from langchain_core.output_parsers import StrOutputParser
-from langchain_core.runnables import RunnablePassthrough ,RunnableLambda,RunnableBranch
-from langchain_classic.retrievers import MultiQueryRetriever  # 可选多查询
 import os
 import re  # 导入正则表达式用于清洗
 
+from langchain_classic.retrievers import MultiQueryRetriever  # 问题改写（需要外部传入LLM）
 from langchain_community.document_loaders import PyPDFLoader, TextLoader,UnstructuredWordDocumentLoader
 from langchain_text_splitters import RecursiveCharacterTextSplitter, MarkdownTextSplitter,MarkdownHeaderTextSplitter
 
 
-
+import chromadb
+from chromadb.config import Settings
 
 class RAGEngineLCEL:
     def __init__(self, persist_directory="./chroma_db",docs_path="./knowledge_base"): #向量库路径， 知识库文件夹路径
-        self.persist_directory = persist_directory  # 路径
+
+         # 使用 HTTP 客户端连接 chromadb 容器
+        self.chroma_client = chromadb.HttpClient(
+            host="chromadb",           # 对应 docker-compose 中的服务名
+            port=8000                   # chromadb 容器内的端口
+        )
+        # self.persist_directory = persist_directory  # 路径
         self.docs_path = docs_path
 
         self.embeddings = ZhipuAIEmbeddings(model="embedding-3", api_key=os.getenv("ZHIPUAI_API_KEY"))
-
-        self.llm = ChatZhipuAI(model="glm-4.6", temperature=0.0, api_key=os.getenv("ZHIPUAI_API_KEY"),timeout = 90)
 
         #测试代码， 事先就已经创建好了知识库
         #self.vectorstore = Chroma(persist_directory=persist_directory, embedding_function=self.embeddings)
@@ -38,48 +39,6 @@ class RAGEngineLCEL:
 
         # 检查数据库是否存在（用Chroma的get_collection检查）
         self.vectorstore = self._load_or_create_vectorstore()
-
-        # RAG 链
-        template = """根据以下上下文精准回答问题，只使用上下文信息，不要编造：
-        上下文：
-        {context}
-
-        问题：{question}
-
-        回答："""
-        prompt = ChatPromptTemplate.from_template(template)
-        # 高级检索器（MMR + 多查询）  MultiQueryRetriever 收到一个问题，用大模型把问题拆解成多个不同角度的相似问题，最后返回文档
-        #Given a query, use an LLM to write a set of queries.
-        #Retrieve docs for each query. Return the unique union of all retrieved docs
-        retriever = MultiQueryRetriever.from_llm(
-            retriever=self.vectorstore.as_retriever(
-            search_type="mmr",
-            search_kwargs={"k": 8, "fetch_k": 20, "lambda_mult": 0.5}
-            ),
-            # search_type="similarity_score_threshold",  # 使用分数阈值检索 ,测试知识库无问题答案，返回预设友好回复
-            # search_kwargs={"k": 8, "score_threshold": 0.5 }
-            # ), # 设置一个基础阈值，低于此的不返回
-
-            llm=self.llm
-        )
-        
-
-        # # 定义正常处理流程：prompt -> llm -> parser
-        normal_chain = prompt | self.llm | StrOutputParser()
-
-        # # 定义分支：如果输入字典中有 "__no_answer__" 键，直接返回预设消息 
-        branch = RunnableBranch(
-            (lambda x: isinstance(x, dict) and x.get("__no_answer__"),   #条件1
-             lambda x: "抱歉，我在知识库中没有找到相关信息。你可以尝试换个问题。"), #分支1
-            normal_chain  #   默认分支
-        )
-        
-        self.rag_chain = (
-            #第一个字典：准备输入，从输入中提取出 “question” 和检索到的 “context
-            {"context": retriever, "question": RunnablePassthrough()}
-            | RunnableLambda(self.check_and_mark)  # 新增检查步骤
-            |branch
-        )
         # '''{“context”: self.retriever, “question”: RunnablePassthrough()}：。它接收一个输入（即用户问题），然后并行执行两个操作：
         # retriever：接收问题，检索出相关文档，结果赋值给 context。
         # RunnablePassthrough()：简单地让原问题通过，赋值给 question。
@@ -89,16 +48,31 @@ class RAGEngineLCEL:
         # | StrOutputParser()：将大模型的复杂响应对象解析为纯文本字符串
         # '''
     
-    #增加回答的健壮性，如果知识库中没有返回该回答，防止模型幻觉
-    def check_and_mark(self,inputs):
-            # inputs 是一个字典，包含 'context' 和 'question'
-            
-        if not inputs.get('context') or len(inputs['context']) == 0:
-                # 检索为空，返回一个带特殊键的字典
-            print("答案未找到，进入预留友好返回")
-            return {"__no_answer__": True, "question": inputs["question"]}
-        else:
-            return inputs  # 正常情况，原样返回
+    def retrieve(self, question: str, k: int = 6, *, search_type: str = "mmr", llm=None):
+        """仅检索：支持 MMR；可选用 MultiQuery 做问题改写（需要外部传入 llm）。"""
+        if search_type not in ("mmr", "similarity"):
+            search_type = "mmr"
+
+        retriever = self.vectorstore.as_retriever(
+            search_type=search_type,
+            search_kwargs={"k": k, "fetch_k": max(20, k * 3), "lambda_mult": 0.5} if search_type == "mmr" else {"k": k},
+        )
+
+        # 可选：问题改写（MultiQueryRetriever 需要一个 llm，这里不在 RAGEngine 内部创建）
+        if llm is not None:
+            retriever = MultiQueryRetriever.from_llm(retriever=retriever, llm=llm)
+
+        return retriever.invoke(question)
+
+    def get_context(self, question: str, k: int = 6, *, search_type: str = "mmr", llm=None) -> str:
+        """仅检索：把相关文档块拼成上下文，供 Agent 生成最终答案。"""
+        docs = self.retrieve(question, k=k, search_type=search_type, llm=llm)
+        if not docs:
+            return "（知识库未检索到相关规则片段）"
+        context = "\n\n".join([doc.page_content for doc in docs if getattr(doc, "page_content", None)])
+        if not context.strip():
+            return "（知识库检索到了结果，但内容为空）"
+        return f"（以下为知识库检索到的规则片段，请据此回答/润色）\n{context}"
 
         # 检索type = similarity_score_threshold 的时候  测试是否能执行 if not docs_with_score:分支， 测试通过
             # docs_with_score = inputs.get("context", [])
@@ -253,7 +227,12 @@ class RAGEngineLCEL:
         """加载或创建向量库：如果存在，直接加载；否则，加载文件并创建"""
         # 检查collection是否存在
         try:
-            vectorstore = Chroma(persist_directory=self.persist_directory, embedding_function=self.embeddings)
+            vectorstore = Chroma(
+            client=self.chroma_client,
+            collection_name="resume_rules",
+            embedding_function=self.embeddings
+        )
+            # vectorstore = Chroma(persist_directory=self.persist_directory, embedding_function=self.embeddings)
             if vectorstore._collection.count() > 0:
                 print("✅ 加载现有向量库（已存在）。")
                 return vectorstore
@@ -267,7 +246,9 @@ class RAGEngineLCEL:
             vectorstore = Chroma.from_documents(
                 documents=[],
                 embedding=self.embeddings,
-                persist_directory=self.persist_directory
+                # persist_directory=self.persist_directory
+                client=self.chroma_client,
+                collection_name="resume_rules",
             )
             
             return vectorstore
@@ -279,21 +260,22 @@ class RAGEngineLCEL:
         vectorstore = Chroma.from_documents(
             documents=all_splits,
             embedding=self.embeddings,
-            persist_directory=self.persist_directory
+            # persist_directory=self.persist_directory
+            client=self.chroma_client,
+            collection_name="resume_rules",
         )
         
         print("✅ 新向量库创建完成。")
         return vectorstore
 
         
-    def query_document(self,question:str):
-        return self.rag_chain.invoke(question)
-    # def add_document(self,file_name:str):
+    def query_document(self, question: str):
+        """兼容旧接口：现在等价于 get_context（不再内部调用LLM生成答案）。"""
+        return self.get_context(question)
 
     async def aquery_document(self, question: str):
-        """异步版本：使用 ainvoke 非阻塞执行 RAG 链"""
-        
-        return await self.rag_chain.ainvoke(question)
+        """兼容旧接口的异步版本。"""
+        return self.get_context(question)
 
     def debug_inspect_vectorstore(self, keyword: str, k: int = 20):
         """调试：直接查看向量库中与关键词相关的所有文档块"""
