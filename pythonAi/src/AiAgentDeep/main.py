@@ -1,7 +1,7 @@
 # main.py
-from agentCore import  get_api_key, create_ai_agent, run_chat_loop,newRun_chat_loop
+from src.AiAgentDeep.agentCore import  get_api_key, create_ai_agent, run_chat_loop,newRun_chat_loop
 
-from memory import ConversationMemory #用对话管理类
+from src.AiAgentDeep.memory import ConversationMemory #用对话管理类
 
 
 

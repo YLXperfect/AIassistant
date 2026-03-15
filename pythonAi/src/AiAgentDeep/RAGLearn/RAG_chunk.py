@@ -1,7 +1,7 @@
 #RAG 第二步文档分割
 
 
-# src/AiAgent/RAGLearn/text_splitting_demo.py
+# src/AiAgentDeep/RAGLearn/text_splitting_demo.py
 import os
 from typing import List, Dict, Any
 

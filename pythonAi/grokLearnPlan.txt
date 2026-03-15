@@ -1,69 +1,336 @@
-第一阶段（第1-20天）：核心产品交付（智能研究助手 V1）目标：命令行 + Web 版 Agent（LangGraph ReAct + 多工具 + 完整 RAG），可面试 Demo。第1-7天：基础 + RAG 链Day 1：环境搭建 + LangChain 入门（已完成）。
+第一阶段（第1-20天）：核心产品交付（智能研究助手 V1）目标：命令行 + Web 版 Agent（LangGraph ReAct + 多工具 + 完整 RAG），可面试 Demo。
+第1-7天：基础 + RAG 链Day 1：环境搭建 + LangChain 入门（已完成）。
 Day 2：工具调用基础（计算器 + @tool
 ）。
 Day 3：多工具 + 记忆（天气 + 时间 + 手动 ReAct）。
 Day 4：调试优化 + 思考链可见。
 Day 5：升级 LangGraph ReAct Agent + 初步 RAG 工具（已完成）。
-Day 6：完整 RAG 链（retriever + prompt + LLM + MMR + 多查询）。已完成（rag_chain.py 跑通）。
+Day 6：完整 RAG 链（retriever + prompt + LLM + MMR + 多查询）。
 Day 7：RAG 测试 + 优化（多轮追问 + token 管理 + compression + HyDE 预热）。
 
-第8-15天：RAG 进阶 + PromptDay 8：RAG 链高级模式（map_reduce/refine + stuff）。
-Day 9：混合检索 + 重排序 + metadata 过滤。
-Day 10：Prompt 工程精通（few-shot + CoT + 系统提示优化 ReAct）。
-Day 11：数据清洗实战（pandas 清洗 PDF/CSV + 集成工具）。
-Day 12：向量检索进阶（多查询扩展 + 评估预热）。
-Day 13：NLP/ML 基础（Tokenization + PyTorch 张量 + 简单分类）。
-Day 14：微调概念（LoRA + PEFT 示例 Notebook）。
-Day 15：第一阶段复盘（完整 RAG Agent 测试 + GitHub update + README 架构图）。
+第8-15天：RAG 进阶 + PromptDay  当前第八天
+Day8：RAG链高级模式（map_reduce/refine + stuff，5小时）【优化：融入知识库调整】
+子任务：实现三种链类型；用知识库测试性能；集成到smart_document_qa工具。
+步骤：准备知识库文件（rules.md, star.md, template1.md）；加载到Chroma（DocumentLoader + 嵌入）；用map_reduce总结规则（e.g., “总结简历写作技巧”）；refine迭代润色用户简历（结合“袁麟翔简历”+规则）；比较token用量/准确（测试10查询，如“用量化优化经历”）。
+参考：https://python.langchain.com/v0.2/docs/tutorials/rag/#advanced-rag-techniques；https://python.langchain.com/v0.2/docs/integrations/document_loaders/unstructured/（加载MD）。
+产出：AdvancedRAG.py + knowledge_base/文件夹，commit “Day8: Advanced RAG chains with resume rules knowledge base”。
 
-第16-20天：工程化 + Web 界面Day 16：FastAPI 后端封装（/chat 接口 + stream）。
-Day 17：Streamlit UI 基础（聊天界面 + 文件上传）。
-Day 18：会话管理 + 工具配置 UI（多用户简单支持）。
-Day 19：Docker 容器化（Dockerfile + compose + Chroma）。
-Day 20：部署 + 第一阶段收尾（Railway/Render 上线 + Demo 链接 + 完整 README）。
+Day9：混合检索 + 重排序 + metadata过滤（5小时）【优化：知识库检索优化】
+子任务：实现EnsembleRetriever（语义+关键词）；加rerank（Cohere或自定义）；metadata过滤（e.g., type: 'rule' or 'template'）。
+步骤：为知识库加metadata（e.g., {'source': 'star.md', 'type': 'law'}）；测试混合检索（如“STAR + 我的经历” → 过滤召回规则+“袁麟翔简历”片段）；评估召回提升。
+参考：https://python.langchain.com/v0.2/docs/how_to/ensemble_retriever/；https://python.langchain.com/v0.2/docs/how_to/add_metadata/。
+产出：更新RAG_Pipeline.py，commit “Day9: Hybrid retrieval with rules filtering”。
 
-第二阶段（第21-40天）：多 Agent 协作系统（V2）目标：LangGraph 多 Agent（规划/检索/生成/审核） + 数据处理 + 部署，简历杀器。第21-30天：多 Agent 架构升级Day 21：LangGraph 状态图入门（StateGraph + nodes + edges）。
-Day 22：多 Agent 设计（规划 Agent + 检索 Agent + 生成 Agent + 审核 Agent）。
-Day 23：状态持久化 + 记忆共享（checkpoint + SQLite）。
-Day 24：条件分支 + 动态路由（conditional_edge）。
-Day 25：可视化调试 + 错误处理（draw_mermaid + 重试/fallback）。
-Day 26：RAG 集成检索 Agent（专用 RAG 子 Agent）。
-Day 27：数据清洗 Agent（pandas + 文本清洗）。
-Day 28：生成 + 审核 Agent（结构化输出 + 事实检查）。
-Day 29：Agent 通信 + 工作流编排（消息传递 + 并行）。
-Day 30：第二阶段中期复盘（V2 多 Agent Demo + 测试复杂问题）。
+Day10：Prompt工程精通（few-shot + CoT + 系统提示优化ReAct，5小时）【优化：润色prompt用规则】
+子任务：自定义prompt模板；few-shot示例从知识库抽取（e.g., “输入:原经历 输出:用STAR+量化的优版”）；CoT多步（先查规则，再应用）。
+步骤：优化ReAct prompt强调“用本地知识库规则润色”；测试多轮（如先问技巧，再润色“袁麟翔简历”）。
+参考：https://python.langchain.com/v0.2/docs/how_to/few_shot_examples/；https://python.langchain.com/v0.2/docs/how_to/chain_of_thought/。
+产出：prompts.py（含规则few-shot），commit “Day10: Prompt engineering for resume polishing with rules”。
 
-第31-40天：数据处理 + 部署Day 31：pandas 深度清洗 + 表格提取。
-Day 32：chunk 策略优化（semantic chunking + metadata）。
-Day 33：多模态初步（PDF 表格/图片支持）。
-Day 34：数据库工具（SQL 查询 Agent）。
-Day 35：API + 通知工具（外部集成）。
-Day 36：缓存 + 性能优化（向量缓存 + 结果缓存）。
-Day 37：Docker 进阶（multi-stage + compose）。
-Day 38：云部署（Railway + 监控）。
-Day 39：LangSmith tracing + 成本监控。
-Day 40：第二阶段收尾（V2 生产级系统 + 架构图 + Demo）。
+Day11：数据清洗实战（pandas清洗PDF/CSV + 集成工具，5小时）【新增：清洗知识库+模板】
+子任务：用PyMuPDF/Pandas解析/清洗规则/模板文件（e.g., 提取关键词列表）；建clean_resume工具（清洗用户上传+合并规则）。
+步骤：清洗“袁麟翔简历”PDF（去噪、段落提取）；清洗rules.md（pandas DataFrame存技巧）；集成到RAG预处理。
+参考：https://python.langchain.com/v0.2/docs/integrations/document_loaders/pymupdf/；pandas docs。
+产出：data_cleaning.py，commit “Day11: Cleaning for resume rules/templates and user files”。
 
-第三阶段（第41-60天）：微调 + 项目集 + 求职目标：3个完整项目 + 面试准备，高级岗位水平。第41-46天：PyTorch + 微调基础Day 41：PyTorch 入门（Tensor + GPU）。
-Day 42：Transformer 架构深入。
-Day 43：微调理论（LoRA/QLoRA/PEFT）。
-Day 44：数据准备（指令数据集清洗）。
-Day 45：LoRA 微调实战（Qwen2-1.5B）。
-Day 46：微调评估 + 优化。
+Day12：向量检索进阶（多查询扩展 + 评估预热，5小时）【优化：评估规则召回】
+子任务：MultiQueryRetriever生成变体查询（e.g., “简历量化技巧 synonyms”）；用Evaluator评估RAG（召回率/准确，针对规则应用）。
+步骤：测试集含规则查询（e.g., 10个“润色+STAR”）；计算指标（LangChain PairwiseEvaluator）。
+参考：https://python.langchain.com/v0.2/docs/how_to/multi_query/；https://python.langchain.com/v0.2/docs/guides/evaluation/。
+产出：evaluation.py，commit “Day12: Advanced vector search with rules eval”。
 
-第47-52天：微调集成 + 项目一Day 47：微调模型部署（量化 + ONNX）。
-Day 48：集成 LangChain（Custom LLM）。
-Day 49：项目一：微调增强 RAG 系统。
-Day 50：项目一优化 + AB 测试。
-Day 51：Docker 容器化项目一。
-Day 52：项目一部署 + 文档。
+Day13：NLP/ML基础（Tokenization + PyTorch张量 + 简单分类，5小时）【优化：分类简历/规则段落】
+子任务：HuggingFace tokenizer分词规则文本；PyTorch模型分类（e.g., 规则 vs 模板 vs 用户经历）。
+步骤：Notebook用“袁麟翔简历”+rules.md训练简单分类器；集成到清洗工具。
+参考：https://huggingface.co/docs/transformers/tokenizer；https://pytorch.org/tutorials/beginner/basics/quickstart_tutorial.html。
+产出：nlp_basics.ipynb，commit “Day13: NLP/ML basics for resume sections”。
 
-第53-60天：多项目 + 求职Day 53：项目二：移动端 AI 助手设计。
-Day 54：项目二前端（React Native）。
-Day 55：项目三：多 Agent 平台设计。
-Day 56：项目三后端 + 数据库。
-Day 57：简历 + 技术总结。
-Day 58：GitHub 作品集整理 + 演示视频。
-Day 59：面试模拟 + 项目演示。
-Day 60：终期复盘 + 职业规划。
+Day14：微调概念（LoRA + PEFT示例Notebook，5小时）【优化：SFT预热用规则数据】
+子任务：LoRA/PEFT理论；HuggingFace datasets加载规则+模板数据集（e.g., 原描述-优描述对）。
+步骤：准备小数据集（从rules.md生成指令对，如“应用STAR: 输入X 输出Y”）。
+参考：https://huggingface.co/docs/peft/en/conceptual_guides/lora；https://huggingface.co/docs/datasets/。
+产出：finetune_intro.ipynb，commit “Day14: LoRA/PEFT with SFT prep on rules”。
 
+Day15：第一阶段复盘（完整RAG Agent测试 + GitHub update + README架构图，4小时）【优化：测试规则润色】
+子任务：端到端测试（上传“袁麟翔简历”→查规则→润色）；画架构图（含知识库）；更新README。
+步骤：10场景测试（e.g., “用模板优化我的教育”）；修复bug。
+参考：draw.io for 图；项目README。
+产出：README.md + 图，commit “Day15: Phase1 review with rules integration”。
+
+Day16：FastAPI后端封装（/chat接口 + stream，5小时）【新增：上传支持规则文件】
+子任务：建FastAPI；/chat + /upload（用户简历+可选规则更新）。
+步骤：集成知识库RAG；stream响应润色。
+参考：https://fastapi.tiangolo.com/。
+产出：app.py，commit “Day16: FastAPI backend with upload”。
+
+Day17：Streamlit UI基础（聊天界面 + 文件上传，5小时）【优化：UI显示规则建议】
+子任务：Streamlit聊天；上传组件（简历PDF）；显示RAG输出（含规则引用）。
+步骤：st.file_uploader；连接FastAPI。
+参考：https://docs.streamlit.io/。
+产出：ui.py，commit “Day17: Streamlit UI with file upload and rules”。
+
+Day18：会话管理 + 工具配置UI（多用户简单支持，5小时）【新增：生成润色文件按钮】
+子任务：st.session_state记忆；工具UI（选规则如STAR）；生成按钮（输出PDF/MD，用reportlab）。
+步骤：多用户Redis；下载润色版（应用模板）。
+参考：https://docs.streamlit.io/library/api-reference/session-state；reportlab docs。
+产出：更新ui.py，commit “Day18: Session mgmt and generate/download with templates”。
+
+Day19：Docker容器化（Dockerfile + compose + Chroma，4小时）
+子任务：Dockerfile；compose（FastAPI + Streamlit + Chroma，含知识库卷）。
+步骤：测试本地run。
+参考：https://docs.docker.com/get-started/。
+产出：Dockerfiles，commit “Day19: Docker containerization”。
+
+Day20：部署 + 第一阶段收尾（Railway/Render上线 + Demo链接 + 完整README，5小时）
+子任务：上线V1；录Demo（展示规则润色“袁麟翔简历”）；完善README（规则使用指南）。
+步骤：环境变量（GLM key）；监控。
+参考：https://railway.app/docs。
+产出：部署链接，commit “Day20: Deploy V1 and final docs”。
+
+
+第二阶段（Day21-40）：多Agent协作系统（V2）
+目标：多Agent版简历润色（规划分解、检索规则、生成润色、审核）。知识库延续，用在检索Agent。
+
+Day21：LangGraph状态图入门（StateGraph + nodes + edges，5小时）
+子任务：建StateGraph；nodes如plan/retrieve（查规则）。
+步骤：用GLM驱动；测试简单润色流。
+参考：https://python.langchain.com/v0.2/docs/concepts/#langgraph。
+产出：langgraph_basics.py，commit “Day21: LangGraph intro”。
+
+Day22：多Agent设计（规划/检索/生成/审核，5小时）【新增：MCP入门】
+子任务：设计4 Agents（检索Agent查规则/模板）；MCP服务器（FastMCP，暴露润色工具）。
+步骤：pip install fastmcp；测试连接。
+参考：https://github.com/langchain-ai/mcp-adapters。
+产出：multi_agent.py，commit “Day22: Multi-agent design with MCP server”。
+
+Day23：状态持久化 + 记忆共享（checkpoint + SQLite，5小时）
+子任务：checkpoint；共享记忆（跨Agent存规则查询）。
+步骤：SQLite持久。
+参考：https://python.langchain.com/v0.2/docs/how_to/persistence/。
+产出：更新multi_agent，commit “Day23: State persistence”。
+
+Day24：条件分支 + 动态路由（conditional_edge，5小时）
+子任务：路由（如需STAR→生成Agent）。
+步骤：测试“袁麟翔简历”+规则。
+参考：https://python.langchain.com/v0.2/docs/how_to/routing/。
+产出：commit “Day24: Conditional routing”。
+
+Day25：可视化调试 + 错误处理（draw_mermaid + 重试/fallback，5小时）
+子任务：Mermaid图；retry规则失败。
+步骤：debug多Agent。
+参考：https://python.langchain.com/v0.2/docs/how_to/debugging/。
+产出：debug_tools.py，commit “Day25: Viz and error handling”。
+
+Day26：RAG集成检索Agent（专用RAG子Agent，5小时）【优化：检索规则/模板】
+子任务：RAG Agent查知识库（e.g., 行业模板）。
+步骤：集成V1 RAG+规则。
+参考：Day5-9。
+产出：commit “Day26: RAG sub-agent for resume rules”。
+
+Day27：数据清洗Agent（pandas + 文本清洗，5小时）
+子任务：清洗Agent处理规则+用户文件。
+步骤：集成V2。
+参考：Day11。
+产出：commit “Day27: Cleaning agent”。
+
+Day28：生成 + 审核Agent（结构化输出 + 事实检查，5小时）【优化：生成用规则】
+子任务：生成JSON简历（应用STAR）；审核一致性。
+步骤：Pydantic结构。
+参考：https://python.langchain.com/v0.2/docs/how_to/structured_output/。
+产出：commit “Day28: Generate and review agents with rules”。
+
+Day29：Agent通信 + 工作流编排（消息传递 + 并行，5小时）【新增：MCP集成】
+子任务：消息队列；并行（检索规则+生成）；MCP适配器连接服务器。
+步骤：端到端润色测试。
+参考：Day22。
+产出：commit “Day29: Agent comm and MCP integration”。
+
+Day30：第二阶段中期复盘（V2多Agent Demo + 测试复杂问题，4小时）【优化：规则Demo】
+子任务：测试多Agent润色（“袁麟翔简历”+规则）；Demo视频。
+步骤：复杂如“全简历+模板适配”。
+参考：项目测试。
+产出：commit “Day30: Phase2 mid-review”。
+
+Day31：pandas深度清洗 + 表格提取（5小时）
+子任务：提取规则表格（e.g., 行动动词列表）；camelot PDF表格。
+步骤：用“模板PDF”。
+参考：https://camelot-py.readthedocs.io/。
+产出：commit “Day31: Advanced pandas cleaning”。
+
+Day32：chunk策略优化（semantic chunking + metadata，5小时）
+子任务：语义切割规则文本；加metadata。
+步骤：提升召回。
+参考：https://python.langchain.com/v0.2/docs/how_to/semantic-chunker/。
+产出：commit “Day32: Chunk optimization for rules”。
+
+Day33：多模态初步（PDF表格/图片支持，5小时）
+子任务：处理模板图片；多模态RAG。
+步骤：Unstructured。
+参考：https://python.langchain.com/v0.2/docs/integrations/document_loaders/unstructured/。
+产出：commit “Day33: Multimodal support”。
+
+Day34：数据库工具（SQL查询Agent，5小时）
+子任务：SQL工具查规则DB（e.g., 存储技巧表）。
+步骤：SQLite。
+参考：https://python.langchain.com/v0.2/docs/integrations/tools/sqlite/。
+产出：commit “Day34: SQL agent tool”。
+
+Day35：API + 通知工具（外部集成，5小时）
+子任务：API如通知润色结果；自定义工具。
+步骤：规则应用示例。
+参考：Day2。
+产出：commit “Day35: API and notification tools”。
+
+Day36：缓存 + 性能优化（向量缓存 + 结果缓存，5小时）
+子任务：Redis缓存规则查询；优化V2。
+步骤：测试速度。
+参考：https://python.langchain.com/v0.2/docs/how_to/caching/。
+产出：commit “Day36: Caching optimizations”。
+
+Day37：Docker进阶（multi-stage + compose，5小时）
+子任务：multi-stage；compose含MCP。
+步骤：知识库卷。
+参考：Day19。
+产出：commit “Day37: Advanced Docker”。
+
+Day38：云部署（Railway + 监控，5小时）【新增：vLLM初步】
+子任务：上线V2；vLLM安装+GLM推理（batch规则查询）。
+步骤：pip install vllm。
+参考：https://docs.vllm.ai/。
+产出：commit “Day38: Cloud deploy with vLLM intro”。
+
+Day39：LangSmith tracing + 成本监控（5小时）
+子任务：LangSmith trace；监控GLM成本。
+步骤：规则链追踪。
+参考：https://python.langchain.com/v0.2/docs/integrations/providers/langsmith/。
+产出：commit “Day39: Tracing and cost monitoring”。
+
+Day40：第二阶段收尾（V2生产级 + 架构图 + Demo，5小时）
+子任务：完整Demo；架构图；README。
+步骤：上线。
+参考：Day20。
+产出：commit “Day40: Phase2 wrap-up”。
+
+
+第三阶段（Day41-60）：微调 + 项目集 + 求职
+目标：SFT微调集成；3项目（用规则/模板数据集）。
+
+Day41：PyTorch入门（Tensor + GPU，5小时）
+子任务：Tensor；GPU。
+步骤：Colab。
+参考：https://pytorch.org/tutorials/。
+产出：pytorch_basics.ipynb，commit “Day41: PyTorch intro”。
+
+Day42：Transformer架构深入（5小时）
+子任务：Attention；代码实现。
+步骤：scratch Transformer。
+参考：https://pytorch.org/tutorials/beginner/transformer_tutorial.html。
+产出：transformer.ipynb，commit “Day42: Transformer deep dive”。
+
+Day43：微调理论（LoRA/QLoRA/PEFT，5小时）
+子任务：理论比较。
+步骤：论文阅读。
+参考：https://huggingface.co/docs/peft/en/index。
+产出：notes.md，commit “Day43: Finetuning theory”。
+
+Day44：数据准备（指令数据集清洗，5小时）【优化：SFT用规则数据】
+子任务：HuggingFace Trainer准备（规则+模板对，如原-优）。
+步骤：datasets清洗。
+参考：https://huggingface.co/docs/datasets/。
+产出：data_prep.py，commit “Day44: SFT data prep with resume rules”。
+
+Day45：LoRA微调实战（Qwen2-1.5B，5小时）【优化：SFT模式】
+子任务：SFT微调；监督损失。
+步骤：Trainer用规则数据集。
+参考：https://huggingface.co/docs/transformers/en/trainer。
+产出：finetune.py，commit “Day45: LoRA SFT finetuning on rules”。
+
+Day46：微调评估 + 优化（5小时）
+子任务：BLEU/ROUGE；AB测试。
+步骤：规则应用评估。
+参考：https://huggingface.co/docs/evaluate/。
+产出：eval.py，commit “Day46: Finetune eval and optimization”。
+
+Day47：微调模型部署（量化 + ONNX，5小时）【新增：vLLM集成】
+子任务：量化；vLLM推理SFT模型。
+步骤：batch infer。
+参考：Day38。
+产出：deploy.py，commit “Day47: Model deploy with vLLM”。
+
+Day48：集成LangChain（Custom LLM，5小时）【优化：SFT到Agent】
+子任务：SFT作为Custom LLM；测试规则润色。
+步骤：替换GLM。
+参考：https://python.langchain.com/v0.2/docs/how_to/custom_llm/。
+产出：custom_llm.py，commit “Day48: Integrate SFT to LangChain”。
+
+Day49：项目一：微调增强RAG系统（5小时）
+子任务：SFT增强V1 RAG（规则润色）。
+步骤：集成Custom LLM。
+参考：Day48。
+产出：project1/，commit “Day49: Project1 finetuned RAG with rules”。
+
+Day50：项目一优化 + AB测试（5小时）
+子任务：优化；AB（原 vs SFT）。
+步骤：指标。
+参考：Day46。
+产出：commit “Day50: Project1 optimizations”。
+
+Day51：Docker容器化项目一（5小时）【新增：vLLM Docker】
+子任务：Dockerize；vLLM镜像。
+步骤：multi-stage。
+参考：Day37。
+产出：commit “Day51: Dockerize Project1 with vLLM”。
+
+Day52：项目一部署 + 文档（5小时）
+子任务：上线；文档。
+步骤：Railway。
+参考：Day20。
+产出：commit “Day52: Deploy and doc Project1”。
+
+Day53：项目二：移动端AI助手设计（5小时）
+子任务：设计移动版（React Native）。
+步骤：API规划。
+参考：https://reactnative.dev/。
+产出：project2/design.md，commit “Day53: Project2 design”。
+
+Day54：项目二前端（React Native，5小时）
+子任务：UI（聊天+上传）；MCP工具。
+步骤：连接后端。
+参考：Day53。
+产出：project2/app.js，commit “Day54: Project2 frontend”。
+
+Day55：项目三：多Agent平台设计（5小时）
+子任务：设计平台（MCP/vLLM）。
+步骤：扩展V2。
+参考：Day22-29。
+产出：project3/design.md，commit “Day55: Project3 design”。
+
+Day56：项目三后端 + 数据库（5小时）
+子任务：FastAPI；PostgreSQL。
+步骤：SFT集成。
+参考：Day16。
+产出：project3/backend.py，commit “Day56: Project3 backend”。
+
+Day57：简历 + 技术总结（4小时）
+子任务：写简历（突出规则项目）；总结。
+步骤：用V1润色你的简历！
+参考：岗位要求。
+产出：resume.md，commit “Day57: Resume and tech summary”。
+
+Day58：GitHub作品集整理 + 演示视频（5小时）
+子任务：整理；录视频（规则Demo）。
+步骤：优化仓库。
+参考：GitHub practices。
+产出：videos/，commit “Day58: Portfolio and demos”。
+
+Day59：面试模拟 + 项目演示（5小时）
+子任务：模拟题（如“RAG规则优化”）；练习。
+步骤：我帮问答。
+参考：面试题。
+产出：interview_notes.md，commit “Day59: Interview prep”。
+
+Day60：终期复盘 + 职业规划（4小时）
+子任务：回顾；规划。
+步骤：技能评估。
+参考：计划总结。
+产出：final_review.md，commit “Day60: Final recap”。

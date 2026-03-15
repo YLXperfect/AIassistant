@@ -1,4 +1,4 @@
-# ultimate_rag_evaluator.py - 终极RAG评估器
+# ultimate_rag_evaluator.py - RAG评估器
 import json
 from typing import List, Dict, Tuple
 import re
