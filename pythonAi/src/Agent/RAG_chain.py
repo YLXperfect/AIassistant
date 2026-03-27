@@ -1,3 +1,4 @@
+#作为本地知识库的处理类，保持现状
 from langchain_chroma import Chroma
 from langchain_community.embeddings import ZhipuAIEmbeddings
 import os
@@ -134,7 +135,7 @@ class RAGEngineLCEL:
                 elif file_path.endswith('.txt'):
                     loader = TextLoader(file_path, encoding='utf-8')
                     docs = loader.load()
-                #暂时不支持docx文件， 等安装Unstructured依赖包
+                #docx文件，
                 elif file_path.endswith('.docx'):
                     loader = UnstructuredWordDocumentLoader(file_path)
                     docs = loader.load()

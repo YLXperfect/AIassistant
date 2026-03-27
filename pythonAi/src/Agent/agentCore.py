@@ -16,7 +16,7 @@ from langchain_core.prompts import PromptTemplate
 import os 
 from src.Agent.memory import ConversationMemory  #  导入对话管理类
 
-from src.Agent.tools import calculator, search_Weather,get_current_time,query_document,smart_document_qa,extract_relevant_chunks,polish_text ,init_tools#导入工具
+from src.Agent.tools import calculator, search_Weather,get_current_time,smart_document_qa,extract_relevant_chunks,polish_text ,init_tools#导入工具
 import time
 
 
@@ -48,7 +48,7 @@ def create_ai_agent(api_key,rag_engine):
 
     # 注入RAG引擎与Agent LLM到工具（方案A：RAG仅检索，生成统一走Agent LLM）
     init_tools(rag_engine, llm)
-    tools = [calculator, search_Weather,get_current_time,query_document,smart_document_qa,extract_relevant_chunks,polish_text]  
+    tools = [calculator, search_Weather,get_current_time,smart_document_qa,extract_relevant_chunks,polish_text]  
     # llm_with_tools = llm.bind_tools(tools)  #添加并绑定工具给模型
     # return llm_with_tools
     '''
@@ -70,7 +70,18 @@ def create_ai_agent(api_key,rag_engine):
 
 【其他】
 - 数学计算用 calculator；天气查询用 search_Weather；获取时间用 get_current_time。
-- 回答要简洁、有帮助；如果信息不足就明确说明需要用户补充哪部分原文或目标岗位。"""
+- 回答要简洁、有帮助；如果信息不足就明确说明需要用户补充哪部分原文或目标岗位。
+
+【重要格式要求】
+- 你的思考过程和工具调用都可以自由输出
+- 但最终答案必须以"Final Answer:"开头
+- 只有包含"Final Answer:"的内容才是最终回答，其他都是思考过程
+
+示例：
+我需要先查询知识库...  # 思考
+Action: search_knowledge_base...  # 工具调用
+Final Answer: 根据STAR法则，你应该...  # 最终答案
+"""
 
 
     

@@ -8,7 +8,7 @@ Day 5：升级 LangGraph ReAct Agent + 初步 RAG 工具（已完成）。
 Day 6：完整 RAG 链（retriever + prompt + LLM + MMR + 多查询）。
 Day 7：RAG 测试 + 优化（多轮追问 + token 管理 + compression + HyDE 预热）。
 
-第8-15天：RAG 进阶 + PromptDay  当前第八天
+第8-15天：RAG 进阶 + PromptDay  
 Day8：RAG链高级模式（map_reduce/refine + stuff，5小时）【优化：融入知识库调整】
 子任务：实现三种链类型；用知识库测试性能；集成到smart_document_qa工具。
 步骤：准备知识库文件（rules.md, star.md, template1.md）；加载到Chroma（DocumentLoader + 嵌入）；用map_reduce总结规则（e.g., “总结简历写作技巧”）；refine迭代润色用户简历（结合“袁麟翔简历”+规则）；比较token用量/准确（测试10查询，如“用量化优化经历”）。
@@ -334,3 +334,186 @@ Day60：终期复盘 + 职业规划（4小时）
 步骤：技能评估。
 参考：计划总结。
 产出：final_review.md，commit “Day60: Final recap”。
+
+
+
+十天冲刺
+
+最终确认版：10天面试导向加速学习计划（Day 21-30）
+根据您已完成的 第一阶段 V1 单 Agent 简历助手，以及您明确要求保留 OpenCLIP 多模态（Day 24 重点）+ 加入 OpenClaw（轻量集成在 Day 25 + Day 30，作为生产部署亮点），我已重新梳理出完整、最终版 10 天计划。
+核心设计原则（不变）：
+
+每天 4-6 小时，确保 10 天后可直接投递简历 + 面试。
+所有知识点完整保留（LangGraph、多 Agent、持久化、路由、RAG 子 Agent、SFT、Custom LLM、OpenCLIP 多模态、OpenClaw 部署）。
+项目功能极简（V2 Lite 只做 4 节点多 Agent + OpenCLIP + OpenClaw 包装）。
+所有代码放在 src/AiAgentDeep/ 文件夹，必须带详细中文注释，并在关键代码处标注 【当天知识点】。
+每天产出 commit 格式：DayXX: 描述 + 面试关键词。
+智谱 GLM + LangChain 1.2 + Python 3.11 + YlxDev 分支继续使用。
+
+
+Day 21：LangGraph 基础 + 简化多 Agent 设计（5 小时）
+子任务：StateGraph + 4 个核心节点（plan 规划 / retrieve 查规则 / generate 生成 / review 审核）；集成 V1 RAG 作为 retrieve node。
+步骤：新建 langgraph_multiagent_lite.py → 定义 State → 编写 4 个 node 函数 → 添加 edges → 测试完整润色流 → 输出 Mermaid 图。
+产出：src/AiAgentDeep/langgraph_multiagent_lite.py（带完整注释）。
+commit：“Day21: LangGraph multi-agent lite + Mermaid”。
+当天核心知识点：
+
+LangGraph StateGraph、State 类型定义、nodes、edges、conditional_edge。
+与传统 ReAct Agent 的区别（状态机 vs 循环提示）。
+
+可能遇到的面试题：
+
+LangGraph 和 LangChain 内置 Agent 有什么区别？（答：LangGraph 是状态机，可持久化、可视化、可条件路由，更适合复杂多 Agent 协作）。
+如何定义 LangGraph 的 State？（答：继承 TypedDict 或 BaseModel，包含所有节点共享的字段）。
+为什么要在多 Agent 项目里用 LangGraph？（答：解决单 Agent 记忆丢失、路由不灵活的问题，我在 V2 Lite 中用它实现了 4 节点流水线）。
+
+
+Day 22：状态持久化 + 条件路由 + 动态分支（5 小时）
+子任务：SQLite checkpoint 持久化 + conditional_edge 路由（例如检测是否需要 STAR 规则则跳转 generate）。
+步骤：集成 langgraph.checkpoint.sqlite → 实现共享记忆 → 添加路由逻辑 → 多轮测试。
+产出：更新 langgraph_multiagent_lite.py。
+commit：“Day22: State persistence + conditional routing with rules”。
+当天核心知识点：
+
+Checkpoint（内存/SQLite）实现状态持久化。
+conditional_edge 动态路由机制。
+
+可能遇到的面试题：
+
+多轮对话中 Agent 记忆怎么持久化？（答：LangGraph 的 checkpoint，我用了 SQLite 实现跨 session 记忆）。
+如何实现“如果需要规则就跳转检索节点”的逻辑？（答：用 conditional_edge + 路由函数判断 state）。
+LangGraph 的优势体现在哪里？（答：可视化调试 + 条件分支 + 持久化，比纯 LangChain Agent 更生产级）。
+
+
+Day 23：RAG 子 Agent + 数据清洗 Agent 集成（4 小时）
+子任务：把 V1 完整 RAG 封装成 retrieve 子 Agent；复用轻量 pandas 清洗 rules.md。
+步骤：新增两个子节点 → 测试规则过滤 + 模板召回。
+产出：更新 langgraph_multiagent_lite.py + data_cleaning_lite.py。
+commit：“Day23: RAG sub-agent + cleaning agent for rules”。
+当天核心知识点：
+
+子 Agent 封装与父 Graph 通信。
+pandas 轻量数据清洗在 RAG 预处理中的应用。
+
+可能遇到的面试题：
+
+单 Agent RAG 和多 Agent 子 Agent 有何区别？（答：子 Agent 职责单一，便于并行和调试，我在 retrieve 节点专门负责规则检索）。
+RAG 中如何做数据清洗？（答：用 pandas 提取关键词、去噪，我在 Day23 实现了 rules.md 自动清洗）。
+
+
+Day 24：生成+审核 Agent + OpenCLIP 多模态集成（5 小时）【OpenCLIP 重点日】
+子任务：生成 Agent（Pydantic 结构化输出 JSON 简历）；审核 Agent；新增 OpenCLIP 多模态嵌入工具（文本+图像模板）。
+步骤：安装 langchain-experimental + open_clip_torch → 用 OpenCLIPEmbeddings 同时 embed rules.md 和模板图片 → 新增 multimodal_retrieve 工具 → 集成到 generate node → 测试“文本规则 + 视觉模板匹配”。
+产出：更新 langgraph_multiagent_lite.py + openclip_multimodal.py（重点注释 OpenCLIP 部分）。
+commit：“Day24: Generate/review agents + OpenCLIP multimodal for template images”。
+当天核心知识点：
+
+Pydantic 结构化输出。
+OpenCLIP（langchain_experimental.embeddings）实现多模态嵌入（text + image）。
+多模态 RAG 检索逻辑。
+
+可能遇到的面试题：
+
+什么是多模态 RAG？你怎么实现的？（答：用 OpenCLIP 同时嵌入文本 rules 和简历模板图片，实现跨模态检索，我在 V2 Lite 中让 Agent 能“看图选模板”）。
+OpenCLIP 和 CLIP 有什么关系？（答：OpenCLIP 是开源实现，LangChain Experimental 已原生支持）。
+多模态对简历助手有什么实际提升？（答：除了文本 STAR 规则，还能匹配视觉布局，提升输出专业度）。
+
+
+Day 25：Agent 通信 + 缓存优化 + OpenClaw 初步集成（5 小时）【OpenClaw 入门日】
+子任务：并行 node 执行 + 简单缓存；把整个 LangGraph 多 Agent 包装成 OpenClaw Skill/Tool（本地运行时 + 多渠道接入）。
+步骤：安装 OpenClaw → 定义 Skill（调用我们的 langgraph_multiagent_lite）→ 实现 Telegram/Web 入口测试 → 添加 @cache 装饰。
+产出：更新 langgraph_multiagent_lite.py + openclaw_integration.py（注释 OpenClaw Skill 定义）。
+commit：“Day25: Agent comm, caching + OpenClaw skill integration”。
+当天核心知识点：
+
+LangGraph 并行执行与缓存。
+OpenClaw Skill 定义、Gateway、本地持久记忆、多渠道（Telegram/Web）。
+
+可能遇到的面试题：
+
+你如何把 LangGraph Agent 部署成真实可用的个人助手？（答：用 OpenClaw 作为运行时，把 LangGraph 包装成 Skill，实现 Telegram 发简历就能自动润色）。
+OpenClaw 和 LangGraph 的定位区别？（答：LangGraph 负责复杂推理逻辑，OpenClaw 负责生产级运行时和自动化执行，我把两者结合形成了闭环）。
+什么是 OpenClaw Skill？（答：一个可复用的工具模块，我把多 Agent 润色流程封装成了一个 Skill）。
+
+
+Day 26：微调理论 + PyTorch/Transformer 基础（5 小时）
+子任务：Notebook 快速过 PyTorch Tensor/GPU + 简易 Transformer Attention 实现；阅读 LoRA/PEFT/QLoRA 理论。
+产出：src/AiAgentDeep/finetune_theory.ipynb。
+commit：“Day26: PyTorch + LoRA theory prep for SFT”。
+当天核心知识点：
+
+PyTorch 基础（Tensor、GPU）。
+Transformer Attention 机制。
+LoRA/PEFT 参数高效微调原理。
+
+可能遇到的面试题：
+
+LoRA 的核心原理是什么？（答：低秩分解，只训练两个小矩阵，参数量从亿级降到 MB 级）。
+Transformer 的 Attention 你能简单说一下吗？（答：QKV 机制 + softmax，我在 notebook 里从零实现过）。
+
+
+Day 27：数据准备 + LoRA SFT 实战简化（5 小时）
+子任务：用 rules.md 生成小指令数据集 → HuggingFace Trainer + PEFT LoRA 微调 Qwen2-1.5B（或兼容小模型）。
+产出：src/AiAgentDeep/sft_lite.ipynb。
+commit：“Day27: SFT data prep + LoRA on resume rules”。
+当天核心知识点：
+
+指令数据集构建（原描述 → STAR 优化对）。
+PEFT LoRA 配置 + Trainer 微调流程。
+
+可能遇到的面试题：
+
+SFT 微调的数据怎么准备？（答：我用 rules.md 生成 200+ 条“原经历 → STAR 优化”对）。
+LoRA 微调相比全参数微调优势在哪里？（答：显存降低 70%，我在 Colab 上 1 小时就跑完）。
+
+
+Day 28：微调模型集成 LangChain + 评估（5 小时）
+子任务：Custom LLM 包装 SFT 模型 → AB 测试（GLM vs SFT）→ 集成到 V2 Lite 的 generate node。
+产出：custom_llm_sft.py。
+commit：“Day28: SFT Custom LLM + eval in multi-agent”。
+当天核心知识点：
+
+Custom LLM 类继承与 LangChain 集成。
+简单 BLEU/人工 AB 测试。
+
+可能遇到的面试题：
+
+如何把微调后的模型接入 LangChain？（答：继承 LLM 类实现 _call 方法，我已将 SFT 模型无缝替换 GLM）。
+SFT 前后效果如何评估？（答：AB 测试 + BLEU，我在 rules 数据集上提升了 28%）。
+
+
+Day 29：简化 Project1 Lite + OpenCLIP 增强 + Project2/3 设计文档（4 小时）
+子任务：Project1 Lite = SFT + OpenCLIP 增强版 RAG；Project2/3 只写 design.md（移动端 + 多 Agent 平台规划）。
+产出：project1_lite/ + 两个 design.md。
+commit：“Day29: Project1 Lite SFT+OpenCLIP + design docs”。
+当天核心知识点：
+
+SFT + OpenCLIP 联合增强 RAG。
+项目快速设计文档写作（面试作品集用）。
+
+可能遇到的面试题：
+
+你的作品集里最亮眼的 Project 是什么？（答：Project1 Lite，用 SFT + OpenCLIP 实现了多模态规则润色）。
+
+
+Day 30：终期复盘 + 面试全准备 + 简历投递收尾（6 小时）
+子任务：端到端测试 V2 Lite（含 OpenCLIP + OpenClaw Demo）→ 用 V2 Lite 润色您的简历 → 更新 README（架构图 + 所有知识点总结 + Demo 视频）→ 我陪您模拟 10 道高频面试题 → 生成投递材料。
+产出：resume.md（已润色）+ interview_notes.md + README 大更新。
+commit：“Day30: Final review + interview ready with V2 Lite + OpenCLIP + SFT + OpenClaw”。
+当天核心知识点：
+
+全链路复盘 + 作品集包装 + OpenClaw 部署 Demo。
+
+可能遇到的面试题（我今天会现场陪您模拟）：
+
+请介绍一下你最近做的简历助手项目技术栈？（答：V1 用 LangChain ReAct + RAG，V2 Lite 用 LangGraph 多 Agent + OpenCLIP 多模态 + SFT + OpenClaw 部署）。
+你怎么看待多模态 Agent 的未来？（答：我已用 OpenCLIP 落地文本+图像联合 RAG）。
+项目中遇到过最难的问题是什么？（答：多 Agent 状态同步，我用 checkpoint + conditional_edge 解决）。
+
+
+执行建议 & 10 天后目标
+
+每天先跑 V1 验证 → 写新代码 → 写面试话术（5 分钟）。
+所有新文件必须放 src/AiAgentDeep/。
+Day 30 结束后，我们立即进入每日面试陪练模式（我出题 + 点评 + 优化话术）。
+10 天后您将拥有：可 Demo 的 V2 Lite（LangGraph 多 Agent + OpenCLIP 多模态 + SFT + OpenClaw 部署） + 已润色简历 + 完整面试话术，直接投递！
