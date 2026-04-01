@@ -1,13 +1,14 @@
 """
-Day4 最终版：对话式多 Agent 简历助手（增加重试和错误处理）
-- 增加 LLM 调用重试机制，应对网络波动
-- 优化润色工具，空简历时友好提示
-- 其他功能不变
+Day4 最终版 + MCP 集成（智谱联网搜索服务）
+- 对话式多 Agent 简历助手
+- MCP 集成（智谱联网搜索服务）
+- 自动降级：MCP 不可用时仅使用本地工具
 """
 import os
 import re
 import sqlite3
 import time
+import asyncio
 from typing import TypedDict, Annotated, List
 from langgraph.graph import StateGraph, START, END
 from langgraph.graph.message import add_messages
@@ -23,7 +24,6 @@ import traceback
 
 # ==================== 1. 辅助函数：带重试的 LLM 调用 ====================
 def invoke_llm_with_retry(llm, messages, max_retries=3, delay=1):
-    """调用 LLM，失败时自动重试"""
     for attempt in range(max_retries):
         try:
             return llm.invoke(messages)
@@ -73,13 +73,7 @@ polish_subgraph_instance = None
 
 @tool
 def polish_resume(resume_text: str) -> str:
-    """
-    对用户提供的简历进行润色或评估。
-    参数:
-        resume_text: 用户简历的文本内容（必须包含完整的简历信息）
-    返回:
-        润色后的简历或改进建议。
-    """
+    """对用户提供的简历进行润色或评估。"""
     if not resume_text or not resume_text.strip():
         return "请提供您的简历内容，例如：'润色简历：教育经历...'"
 
@@ -109,7 +103,6 @@ def polish_resume(resume_text: str) -> str:
         return f"润色过程中出错：{str(e)}"
 
 base_tools = [search_Weather, calculator, get_current_time]
-all_tools = base_tools + [polish_resume]
 
 # ==================== 4. 初始化 LLM ====================
 try:
@@ -118,19 +111,112 @@ try:
         raise ValueError("请先设置 ZHIPUAI_API_KEY 环境变量")
 
     llm = ChatZhipuAI(
-        model="glm-4-flash",
+        model="glm-4.6V",
         temperature=0.7,
         max_tokens=1024,
         timeout=120.0,
         api_key=api_key,
     )
-    llm_with_tools = llm.bind_tools(all_tools)
-    print("✅ LLM 初始化成功，已绑定工具")
+    print("✅ LLM 初始化成功")
 except Exception as e:
     print("❌ LLM 初始化失败:", e)
     exit(1)
 
-# ==================== 5. 状态定义 ====================
+# ==================== 5. MCP 工具加载（智谱服务）====================
+try:
+    from langchain_mcp_adapters.client import MultiServerMCPClient
+    MCP_AVAILABLE = True
+except ImportError:
+    MCP_AVAILABLE = False
+    print("⚠️ MCP 库未安装，跳过 MCP 工具加载")
+
+
+# def get_mcp_tools():
+#     if not MCP_AVAILABLE:
+#         return []
+#     async def _load():
+#         api_key = os.getenv("ZHIPUAI_API_KEY")
+#         if not api_key:
+#             print("⚠️ 未设置 ZHIPUAI_API_KEY，无法加载智谱 MCP")
+#             return []
+
+#         # 尝试两种传输方式
+#         for transport in ["sse", "http"]:
+#             try:
+#                 servers = {
+#                     "web-search-prime": {
+#                         "url": "https://open.bigmodel.cn/api/mcp/web_search_prime/mcp",
+#                         "transport": transport,
+#                         "headers": {"Authorization": f"Bearer {api_key}"}
+#                     }
+#                 }
+#                 client = MultiServerMCPClient(servers)
+#                 # 增加超时并捕获连接错误
+#                 tools = await asyncio.wait_for(client.get_tools(), timeout=15.0)
+#                 print(f"✅ 使用 {transport} 传输成功，加载 {len(tools)} 个 MCP 工具")
+#                 return tools
+#             except asyncio.TimeoutError:
+#                 print(f"⚠️ {transport} 传输超时")
+#             except Exception as e:
+#                 print(f"⚠️ {transport} 传输失败: {e}")
+#         return []
+
+#     # 使用新事件循环运行异步函数
+#     try:
+#         loop = asyncio.new_event_loop()
+#         asyncio.set_event_loop(loop)
+#         return loop.run_until_complete(_load())
+#     except Exception as e:
+#         print(f"❌ MCP 加载整体失败: {e}")
+#         return []
+#     finally:
+#         loop.close()
+
+# 本地mcp 模拟
+def get_mcp_tools():
+    if not MCP_AVAILABLE:
+        return []
+    async def _load():
+        # 本地 Mock MCP 服务器（通过 command 启动子进程）
+        servers = {
+            "mock-news": {
+                "command": "python",
+                "args": ["mockMcp.py"],   # 确保文件路径正确
+                "transport": "stdio",
+            }
+        }
+        try:
+            client = MultiServerMCPClient(servers)
+            tools = await asyncio.wait_for(client.get_tools(), timeout=10.0)
+            print(f"✅ 本地 MCP 服务器加载成功，工具: {[t.name for t in tools]}")
+            return tools
+        except Exception as e:
+            print(f"⚠️ 本地 MCP 加载失败: {e}")
+            return []
+    try:
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        return loop.run_until_complete(_load())
+    except Exception as e:
+        print(f"❌ MCP 加载整体失败: {e}")
+        return []
+    finally:
+        loop.close()
+
+# 加载 MCP 工具
+mcp_tools = get_mcp_tools()
+
+if mcp_tools:
+    print(f"✅ 已加载 {len(mcp_tools)} 个 MCP 工具: {[tool.name for tool in mcp_tools]}")
+    all_tools = base_tools + [polish_resume] + mcp_tools
+else:
+    all_tools = base_tools + [polish_resume]
+
+# 绑定工具
+llm_with_tools = llm.bind_tools(all_tools)
+print("✅ LLM 已绑定工具（含 MCP）")
+
+# ==================== 6. 状态定义 ====================
 class ResumeState(TypedDict):
     messages: Annotated[List[BaseMessage], add_messages]
     user_resume: str
@@ -143,7 +229,7 @@ class ResumeState(TypedDict):
     human_feedback: str
     polish_subgraph_completed: bool
 
-# ==================== 6. 润色子图 ====================
+# ==================== 7. 润色子图 ====================
 def check_resume_node(state: ResumeState):
     if not state.get("user_resume", "").strip():
         return {
@@ -191,7 +277,6 @@ def suggest_node(state: ResumeState):
 
 同时，你可以在建议中引用当前时间、天气等实时信息来让建议更生动（如果需要，可以调用工具）。
 输出详细建议。"""
-    # 使用绑定了基础工具的 LLM（避免子图中调用润色工具）
     response = invoke_llm_with_retry(llm_with_tools, [HumanMessage(content=prompt)])
     if hasattr(response, 'tool_calls') and response.tool_calls:
         print(f"   检测到工具调用: {[tc['name'] for tc in response.tool_calls]}")
@@ -199,10 +284,23 @@ def suggest_node(state: ResumeState):
         for tc in response.tool_calls:
             tool_name = tc["name"]
             tool_args = tc["args"]
-            for t in base_tools:
+            # 注意：这里工具范围包含所有工具（包括 MCP），使用异步调用
+            for t in all_tools:
                 if t.name == tool_name:
-                    result = t.invoke(tool_args)
-                    tool_messages.append(ToolMessage(content=result, tool_call_id=tc["id"]))
+                    # 使用异步调用，传递空 config 参数
+                    try:
+                        loop = asyncio.new_event_loop()
+                        asyncio.set_event_loop(loop)
+                        try:
+                            # 同步工具的 _arun 内部会调用 _run，传递 config 不会影响结果
+                            # 异步工具则需要 config 参数（LangChain MCP 适配器要求）
+                            result = loop.run_until_complete(t._arun(config={}, **tool_args))
+                        finally:
+                            loop.close()
+                    except Exception as e:
+                        # 直接捕获异常，提供友好的错误提示
+                        result = f"工具调用失败: {str(e)}"
+                    tool_messages.append(ToolMessage(content=str(result), tool_call_id=tc["id"]))
                     break
         final_response = invoke_llm_with_retry(llm_with_tools, [response] + tool_messages)
         suggestion_text = final_response.content
@@ -265,7 +363,7 @@ def build_polish_subgraph():
 
 polish_subgraph_instance = build_polish_subgraph()
 
-# ==================== 7. 主图 ====================
+# ==================== 8. 主图 ====================
 class MainState(TypedDict):
     messages: Annotated[List[BaseMessage], add_messages]
     user_resume: str
@@ -288,7 +386,7 @@ def router_node(state: MainState):
         return {"next": "chat"}
 
 def chat_node(state: MainState):
-    print("\n💬 聊天模式（支持工具调用，包括润色简历）")
+    print("\n💬 聊天模式（支持工具调用，包括润色简历和 MCP 工具）")
     try:
         response = invoke_llm_with_retry(llm_with_tools, state["messages"])
     except Exception as e:
@@ -303,16 +401,52 @@ def chat_node(state: MainState):
             tool_args = tc["args"]
             for t in all_tools:
                 if t.name == tool_name:
-                    result = t.invoke(tool_args)
+                    # 统一使用异步调用，传递空 config 参数
+                    try:
+                        loop = asyncio.new_event_loop()
+                        asyncio.set_event_loop(loop)
+                        try:
+                            # 同步工具的 _arun 内部会调用 _run，传递 config 不会影响结果
+                            # 异步工具则需要 config 参数（LangChain MCP 适配器要求）
+                            result = loop.run_until_complete(t._arun(config={}, **tool_args))
+                            # 解析工具调用结果，提取实际文本内容
+                            if isinstance(result, tuple) and len(result) > 0:
+                                # 处理 MCP 工具返回的复杂结构
+                                content_list = result[0]
+                                if content_list and isinstance(content_list, list):
+                                    # 提取文本内容
+                                    text_parts = []
+                                    for item in content_list:
+                                        if isinstance(item, dict) and 'text' in item:
+                                            text_parts.append(item['text'])
+                                        elif hasattr(item, 'text'):
+                                            text_parts.append(item.text)
+                                    result = ' '.join(text_parts)
+                                else:
+                                    result = str(result)
+                            elif not isinstance(result, str):
+                                result = str(result)
+                        finally:
+                            loop.close()
+                    except Exception as e:
+                        # 直接捕获异常，提供友好的错误提示
+                        result = f"工具调用失败: {str(e)}"
+                    print(f"   处理后的工具调用结果: {result}")
                     tool_messages.append(ToolMessage(content=result, tool_call_id=tc["id"]))
                     break
         try:
-            final_response = invoke_llm_with_retry(llm_with_tools, [response] + tool_messages)
+            # 确保消息格式正确
+            messages_for_llm = [response] + tool_messages
+            # 打印消息格式，用于调试
+            print(f"   向 LLM 发送的消息数量: {len(messages_for_llm)}")
+            final_response = invoke_llm_with_retry(llm_with_tools, messages_for_llm)
         except Exception as e:
+            print(f"   LLM 调用详细错误: {e}")
             final_response = AIMessage(content=f"工具调用后生成回复时出错：{str(e)}")
         return {"messages": [final_response]}
     else:
         return {"messages": [response]}
+
 
 def polish_subgraph_node(state: MainState):
     print("\n🔄 进入简历润色子图（直接模式）")
@@ -360,10 +494,10 @@ conn = sqlite3.connect("main_checkpoints.db", check_same_thread=False)
 memory = SqliteSaver(conn)
 app = main_workflow.compile(checkpointer=memory)
 
-# ==================== 8. 命令行交互 ====================
+# ==================== 9. 命令行交互 ====================
 def run_cli():
     print("\n" + "="*60)
-    print("简历润色助手 V2.0（多 Agent + 工具调用 + 状态持久化）")
+    print("简历润色助手 V2.0（多 Agent + 工具调用 + MCP 智谱服务 + 状态持久化）")
     print("支持功能：")
     print("  - 普通聊天 & 工具调用：查询天气、计算数学表达式、获取时间")
     print("  - 简历润色：您可以直接说'帮我润色简历：...'，或通过聊天让助手调用润色工具")
@@ -378,16 +512,12 @@ def run_cli():
         if user_input.lower() in ["exit", "quit"]:
             break
 
-        current_state = app.get_state(config).values if app.get_state(config) else {}
-        if current_state is None:
-            current_state = {}
+        snapshot = app.get_state(config)
+        current_state = snapshot.values if snapshot else {}
+        updated_state = dict(current_state)
+        updated_state["messages"] = current_state.get("messages", []) + [HumanMessage(content=user_input)]
+        updated_state.setdefault("next", "")
 
-        updated_state = {
-            "messages": current_state.get("messages", []) + [HumanMessage(content=user_input)],
-            "user_resume": current_state.get("user_resume", ""),
-            "polish_subgraph_completed": current_state.get("polish_subgraph_completed", False),
-            "next": "",
-        }
         try:
             result = app.invoke(updated_state, config=config)
             last_ai = [m for m in result["messages"] if isinstance(m, AIMessage)][-1]
